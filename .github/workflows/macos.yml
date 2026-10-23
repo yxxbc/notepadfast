@@ -1,0 +1,35 @@
+name: macos-arm64
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt5
+        run: brew install qt@5
+
+      - name: Build QScintilla + NotepadFast
+        run: |
+          export PATH="$(brew --prefix qt@5)/bin:$PATH"
+          JOBS=$(sysctl -n hw.ncpu)
+          (cd third_party/qscint/src && qmake qscintilla.pro && make -j"$JOBS")
+          (cd src && qmake RealCompare.pro && make -j"$JOBS")
+
+      - name: Deploy
+        run: |
+          export PATH="$(brew --prefix qt@5)/bin:$PATH"
+          macdeployqt build/bin/NotepadFast.app -always-overwrite
+          cp -R src/themes build/bin/NotepadFast.app/Contents/MacOS/
+          cp -R src/plugin build/bin/NotepadFast.app/Contents/MacOS/plugin-src || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NotepadFast-macos-arm64
+          path: build/bin/NotepadFast.app
+          if-no-files-found: error

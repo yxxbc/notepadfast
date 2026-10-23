@@ -1,0 +1,21 @@
+# build output
+build/
+*.o
+*.a
+*.dylib
+*.so
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+Makefile
+*.qmake.stash
+*.pro.user
+.qmake.cache
+
+# mac
+.DS_Store
+
+# editor
+.vscode/
+.idea/
+*.autosave
