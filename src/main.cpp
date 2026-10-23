@@ -38,6 +38,25 @@ const ULONG_PTR CUSTOM_TYPE_FILE_LINENUM = 10002;
 bool s_isAdminAuth = false;
 #endif
 
+
+#ifdef Q_OS_MAC
+#include <mach/mach.h>
+//当前进程常驻内存（MB），配合 NDD_BENCH_STARTUP 定位内存大头
+static double rssMB()
+{
+	mach_task_basic_info info;
+	mach_msg_type_number_t size = MACH_TASK_BASIC_INFO_COUNT;
+	if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO, (task_info_t)&info, &size) != KERN_SUCCESS)
+	{
+		return -1;
+	}
+	return double(info.resident_size) / 1048576.0;
+}
+#define NDD_RSS(tag) if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "rss_mb:" << tag << rssMB(); }
+#else
+#define NDD_RSS(tag)
+#endif
+
 const QString c_strTitle = "Ndd";
 
 
@@ -257,6 +276,7 @@ int main(int argc, char *argv[])
 	a.setApplicationDisplayName(c_strTitle);
 	a.setApplicationName(c_strTitle);
 	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "bench_app_ms:" << s_startupTimer.elapsed(); }
+	NDD_RSS("after_app")
 
 	QStringList arguments = QCoreApplication::arguments();
 
@@ -570,6 +590,7 @@ drop_old:
 	int id = NddSetting::getKeyValueFromNumSets(SKIN_KEY);
 	StyleSet::setSkin(id);
 	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "bench_style_ms:" << s_startupTimer.elapsed(); }
+	NDD_RSS("after_skin")
 
 	CCNotePad *pMainNotepad = new CCNotePad(true);
 	pMainNotepad->setAttribute(Qt::WA_DeleteOnClose);
@@ -578,6 +599,7 @@ drop_old:
 
 	pMainNotepad->syncCurSkinToMenu(id);
 	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "bench_window_ms:" << s_startupTimer.elapsed(); }
+	NDD_RSS("after_window")
 
 
 #ifdef Q_OS_WIN
@@ -649,6 +671,8 @@ drop_old:
 #ifdef Q_OS_WIN
 	pMainNotepad->checkAppFont();
 #endif
+
+	NDD_RSS("after_restore")
 
 #ifdef Q_OS_MAC
 	g_pMainNotepad = pMainNotepad;

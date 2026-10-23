@@ -2,6 +2,23 @@
 #include "ccnotepad.h"
 #include <QElapsedTimer>
 #include <QMetaMethod>
+
+#ifdef Q_OS_MAC
+#include <mach/mach.h>
+static double nddRssMB()
+{
+	mach_task_basic_info info;
+	mach_msg_type_number_t size = MACH_TASK_BASIC_INFO_COUNT;
+	if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO, (task_info_t)&info, &size) != KERN_SUCCESS)
+	{
+		return -1;
+	}
+	return double(info.resident_size) / 1048576.0;
+}
+#define NDD_RSS(tag) if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "rss_mb:" << tag << nddRssMB(); }
+#else
+#define NDD_RSS(tag)
+#endif
 #include <QFileInfo>
 #include <QFontDialog>
 #include <QSplitter>
@@ -1196,7 +1213,7 @@ CCNotePad::CCNotePad(bool isMainWindows, QWidget *parent)
 	//这里在主线程里面调用一下，避免后续因为没有创建，而可能在子线程中初始化里面的值，而且多个子线程引发重入竞争问题
 	//20220402在1.11中发现这个问题。所以加上这里的手动调用
 	DocTypeListView::initSupportFileTypes();
-	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  filetypes_ms:" << bench.restart(); }
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  filetypes_ms:" << bench.restart(); } NDD_RSS("filetypes_ms");
 
 
 	ui.editTabWidget->setTabsClosable(true);
@@ -1293,7 +1310,7 @@ void CCNotePad::quickshow()
 
 	show();
 
-	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  show_ms:" << bench.restart(); }
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  show_ms:" << bench.restart(); } NDD_RSS("show_ms");
 
 	//QCoreApplication::processEvents();
 
@@ -1309,12 +1326,12 @@ void CCNotePad::quickshow()
 	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  pre_init_ms:" << bench.restart(); }
 	initFileTypeLangMap();
 	initLexerNameToIndex();
-	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  lexer_map_ms:" << bench.restart(); }
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  lexer_map_ms:" << bench.restart(); } NDD_RSS("lexer_map_ms");
 
 	//这里在主线程里面调用一下，避免后续因为没有创建，而可能在子线程中初始化里面的值，而且多个子线程引发重入竞争问题
 	//20220402在1.11中发现这个问题。所以加上这里的手动调用
 	DocTypeListView::initSupportFileTypes();
-	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  filetypes_ms:" << bench.restart(); }
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  filetypes_ms:" << bench.restart(); } NDD_RSS("filetypes_ms");
 
 	//Markdown 预览面板：和编辑区同在一个 QSplitter 里，默认隐藏
 	m_mdPreview = new MarkdownView(this);
@@ -1454,7 +1471,7 @@ void CCNotePad::quickshow()
 
 
 	initToolBar();
-	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  toolbar_ms:" << bench.restart(); }
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  toolbar_ms:" << bench.restart(); } NDD_RSS("toolbar_ms");
 
 	m_saveFile->setEnabled(false);
 	m_saveAllFile->setEnabled(false);

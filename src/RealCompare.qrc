@@ -230,5 +230,6 @@
         <file>Resources/edit/styledark/zoomin.png</file>
         <file>Resources/edit/styledark/zoomout.png</file>
         <file>Resources/icons/markdown.png</file>
+        <file>Resources/macicon.icns</file>
     </qresource>
 </RCC>

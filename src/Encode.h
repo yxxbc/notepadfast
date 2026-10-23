@@ -22,5 +22,8 @@ public:
 	static CODE_ID CheckUnicodeWithoutBOM(const uchar * pText, int length);
 	static CODE_ID CheckUnicodeWithoutBOM(const uchar * pText, int length, QString & outUnicodeText);
 	static bool CheckTextIsAllAscii(const uchar * pText, int length);
+
+	//零分配的 UTF-8 合法性校验（大文件打开时用来跳过 QString 中转）
+	static bool isValidUtf8(const char* p, int len);
 };
 

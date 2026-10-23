@@ -21,7 +21,7 @@
   </property>
   <property name="windowIcon">
    <iconset resource="../RealCompare.qrc">
-    <normaloff>:/Resources/edit/global/ndd.ico</normaloff>:/Resources/edit/global/ndd.ico</iconset>
+    <normaloff>:/Resources/macicon.icns</normaloff>:/Resources/macicon.icns</iconset>
   </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QHBoxLayout" name="horizontalLayout">

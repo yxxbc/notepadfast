@@ -534,6 +534,66 @@ int FileManager::loadFileDataInText(ScintillaEditView* editView, QString filePat
 		return 3;
 	}
 
+	// ---- UTF-8 快速路径 ----
+	// 大文件如果是 UTF-8，直接把原始字节塞给 Scintilla：
+	// 省掉 toUnicode(2 倍内存的 QString) + 再转回 UTF-8 这两次中转。
+	// 实测 30MB 文件峰值内存 310MB → 明显下降。
+	{
+		QByteArray rawBytes;
+		if (!file.atEnd())
+		{
+			file.seek(0);
+			rawBytes = file.readAll();
+		}
+
+		int bomLen = 0;
+		if (rawBytes.size() >= 3 && (unsigned char)rawBytes[0] == 0xEF
+		    && (unsigned char)rawBytes[1] == 0xBB && (unsigned char)rawBytes[2] == 0xBF)
+		{
+			bomLen = 3;
+		}
+
+		const bool looksUtf8 = (fileTextCode == CODE_ID::UTF8_NOBOM)
+		                       || (fileTextCode == CODE_ID::UTF8_BOM)
+		                       || (fileTextCode == CODE_ID::UNKOWN)
+		                       || (fileTextCode == CODE_ID::ANSI);
+
+		if (looksUtf8 && Encode::isValidUtf8(rawBytes.constData() + bomLen, rawBytes.size() - bomLen))
+		{
+			fileTextCode = (bomLen > 0) ? CODE_ID::UTF8_BOM : CODE_ID::UTF8_NOBOM;
+			lineEnd = RC_LINE_FORM::UNKNOWN_LINE;
+			const int pos = rawBytes.indexOf("\n");
+			if (pos >= 1)
+			{
+				lineEnd = (rawBytes[pos - 1] == '\r') ? RC_LINE_FORM::DOS_LINE : RC_LINE_FORM::UNIX_LINE;
+			}
+			if (lineEnd == RC_LINE_FORM::UNKNOWN_LINE)
+			{
+				lineEnd = RC_LINE_FORM::UNIX_LINE;
+			}
+
+			//语法：后缀优先，否则用文件头部少量内容判断
+			LexerInfo lxdata = CCNotePad::getLangLexerIdByFileExt(filePath);
+			if (lxdata.lexerId != L_TXT)
+			{
+				editView->setLexer(editView->createLexer(lxdata.lexerId, lxdata.tagName));
+			}
+			else
+			{
+				QString headContens = QString::fromUtf8(rawBytes.constData() + bomLen, qMin(300, rawBytes.size() - bomLen));
+				LangType lang = detectLanguage(headContens, filePath);
+				if (lang >= 0 && lang < L_EXTERNAL)
+				{
+					editView->setLexer(editView->createLexer(lang));
+				}
+			}
+
+			editView->SendScintilla(SCI_SETTEXT, rawBytes.constData() + bomLen);
+			file.close();
+			return 0;
+		}
+	}
+
 	QString fileText;
 	bool isErrorCode = false;
 

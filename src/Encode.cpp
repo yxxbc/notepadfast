@@ -403,3 +403,44 @@ bool Encode::CheckTextIsAllAscii(const uchar* pText, int length)
 	}
 	return true;
 }
+
+//严格的 UTF-8 字节序列校验，不做任何内存分配。
+//用途：大文件如果是 UTF-8，可以直接把字节喂给 Scintilla，
+//省掉 "QByteArray → QString(2倍内存) → 再转回 UTF-8" 的中转。
+bool Encode::isValidUtf8(const char* p, int len)
+{
+	if (p == nullptr || len < 0)
+	{
+		return false;
+	}
+
+	int i = 0;
+	while (i < len)
+	{
+		const unsigned char c = static_cast<unsigned char>(p[i]);
+		int extra = 0;
+		if (c < 0x80)
+		{
+			++i;
+			continue;
+		}
+		else if ((c & 0xE0) == 0xC0) { extra = 1; if (c < 0xC2) return false; }
+		else if ((c & 0xF0) == 0xE0) { extra = 2; }
+		else if ((c & 0xF8) == 0xF0) { extra = 3; if (c > 0xF4) return false; }
+		else { return false; }
+
+		if (i + extra >= len)
+		{
+			return false;
+		}
+		for (int k = 1; k <= extra; ++k)
+		{
+			if ((static_cast<unsigned char>(p[i + k]) & 0xC0) != 0x80)
+			{
+				return false;
+			}
+		}
+		i += extra + 1;
+	}
+	return true;
+}
