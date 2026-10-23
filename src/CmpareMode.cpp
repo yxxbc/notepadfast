@@ -4,6 +4,7 @@
 
 
 #include <QFile>
+#include <QElapsedTimer>
 #include <QFileDevice> 
 #include <QVector>
 #include <QCryptographicHash>
@@ -1114,9 +1115,12 @@ CODE_ID CmpareMode::scanFileOutPut(QFile& pFile, CODE_ID code, QString filePath,
 		return CODE_ID::UTF8_NOBOM;
 	}
 
+	QElapsedTimer benchScan;
+	if (qEnvironmentVariableIsSet("NDD_BENCH_OPEN")) { benchScan.start(); }
 	if (code == UNKOWN)
 	{
 		code = getTextFileEncodeType((uchar * )outTextBytes.data(), pFile.size(), filePath);
+		if (qEnvironmentVariableIsSet("NDD_BENCH_OPEN")) { qInfo() << "  detect_ms:" << benchScan.restart() << " code=" << (int)code; }
 
 		//编码还是检测失败，这里概率是比较小的。
 		if (code == CODE_ID::UNKOWN)
@@ -1138,6 +1142,7 @@ CODE_ID CmpareMode::scanFileOutPut(QFile& pFile, CODE_ID code, QString filePath,
 	}
 		
 	bool codeSucess = Encode::tranStrToUNICODE(code, outTextBytes.data()+ lineStartPos, outTextBytes.size()- lineStartPos, outText);
+	if (qEnvironmentVariableIsSet("NDD_BENCH_OPEN")) { qInfo() << "  convert_ms:" << benchScan.restart(); }
 
 	//如果存在乱码，而且不是以gbk编码打开，再无条件尝试ASNI/GBK编码打开。如果是国际版，后续还得完善策略，得无条件以ASNI本地编码打开。
 	if (!codeSucess && (code != CODE_ID::GBK))

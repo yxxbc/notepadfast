@@ -1,6 +1,7 @@
 ﻿#include <memory>
 #include "ccnotepad.h"
 #include <QElapsedTimer>
+#include <QFileInfo>
 #include <QSplitter>
 #include <QToolButton>
 #include "filemanager.h"
@@ -1308,6 +1309,7 @@ void CCNotePad::quickshow()
 				        << "panel=" << (m_mdPreview ? m_mdPreview->size() : QSize())
 				        << "cur=" << (cur ? cur->metaObject()->className() : "null")
 				        << "textLen=" << (m_mdPreview ? m_mdPreview->documentTextLength() : -1)
+				        << "loadedImgs=" << (m_mdPreview ? m_mdPreview->loadedImageCount() : -1)
 				        << "btnChecked=" << (m_mdPreviewBtn && m_mdPreviewBtn->isChecked());
 			});
 		});
@@ -1990,10 +1992,13 @@ void CCNotePad::hookMarkdownLiveUpdate()
 		return;
 	}
 	m_mdLiveConn = connect(pEdit, &ScintillaEditView::textChanged, this, [this]() {
-		if (m_mdPreviewTimer != nullptr)
+		if (m_mdPreviewTimer == nullptr)
 		{
-			m_mdPreviewTimer->start();
+			return;
 		}
+		//大文档去抖久一点，避免边打字边整篇重排
+		const int len = m_mdPreview != nullptr ? m_mdPreview->documentTextLength() : 0;
+		m_mdPreviewTimer->start(len > 200000 ? 800 : 200);
 	});
 }
 
@@ -2006,7 +2011,28 @@ void CCNotePad::refreshMarkdownPreview()
 	}
 
 	ScintillaEditView* pEdit = dynamic_cast<ScintillaEditView*>(ui.editTabWidget->currentWidget());
-	m_mdPreview->setMarkdown(pEdit == nullptr ? QString() : pEdit->text());
+	if (pEdit == nullptr)
+	{
+		m_mdPreview->setMarkdown(QString());
+		return;
+	}
+
+	//把 .md 所在目录传下去，预览才能解析相对路径的图片
+	QString baseDir;
+	const QString filePath = getFilePathProperty(pEdit);
+	if (!filePath.isEmpty())
+	{
+		baseDir = QFileInfo(filePath).absolutePath();
+	}
+	QElapsedTimer mdBench;
+	if (qEnvironmentVariableIsSet("NDD_BENCH_OPEN")) { mdBench.start(); }
+	const QString mdText = pEdit->text();
+	const qint64 tText = mdBench.restart();
+	m_mdPreview->setMarkdown(mdText, baseDir);
+	if (qEnvironmentVariableIsSet("NDD_BENCH_OPEN"))
+	{
+		qInfo() << "md_render: text_ms=" << tText << " total_ms=" << mdBench.elapsed() << " chars=" << mdText.size();
+	}
 }
 
 //批量查找替换
@@ -3336,7 +3362,7 @@ void CCNotePad::initToolBar()
 	m_mdPreviewBtn->setCheckable(true);
 	m_mdPreviewBtn->setFixedSize(ICON_SIZE, ICON_SIZE);
 	m_mdPreviewBtn->setIconSize(QSize(ICON_SIZE, ICON_SIZE));
-	m_mdPreviewBtn->setIcon(QIcon(":/notepad/showPannel.png"));
+	m_mdPreviewBtn->setIcon(QIcon(":/Resources/icons/markdown.png"));
 	m_mdPreviewBtn->setToolTip(tr("Markdown Preview"));
 	connect(m_mdPreviewBtn, &QAbstractButton::clicked, this, &CCNotePad::slot_markdownPreview);
 	ui.mainToolBar->addWidget(m_mdPreviewBtn);

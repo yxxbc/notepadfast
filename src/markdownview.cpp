@@ -7,6 +7,15 @@
 #include <QFont>
 #include <QStringList>
 #include <QApplication>
+#include <QDir>
+#include <QElapsedTimer>
+#include <QFileInfo>
+#include <QImage>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QTextDocument>
+#include <QUrl>
 #include "mdrenderer.h"
 
 // ============================================================
@@ -26,6 +35,109 @@
 //   有效的主要有 color / background-color / font-* /
 //   margin / padding / border(表格与块) / text-decoration。
 // ============================================================
+
+// ============================================================
+// MarkdownDocument —— 让预览真正能显示图片
+//
+// QTextDocument 默认只在内存里找 resource，<img src="..."> 一律空白。
+// 这里重写 loadResource：
+//   - 相对路径 / file:  → 按 baseUrl（.md 所在目录）解析后用 QImage 读
+//   - http(s):          → 异步下载，回来后 addResource 并 markContentsDirty
+// 只缓存成功的结果，失败的下次重新尝试。
+// ============================================================
+class MarkdownDocument : public QTextDocument
+{
+public:
+	explicit MarkdownDocument(QObject* parent = nullptr) : QTextDocument(parent) {}
+
+	QNetworkAccessManager* nam = nullptr;
+	QHash<QUrl, bool> requested;      //已发起下载
+	QHash<QUrl, QVariant> m_cache;    //图片缓存（QVariant() 表示失败）
+
+	//自检用：真正读到图的个数
+	int validImageCount() const
+	{
+		int n = 0;
+		for (auto it = m_cache.constBegin(); it != m_cache.constEnd(); ++it)
+		{
+			if (it.value().isValid())
+			{
+				++n;
+			}
+		}
+		return n;
+	}
+
+	QVariant loadResource(int type, const QUrl& name) override
+	{
+		if (type != QTextDocument::ImageResource)
+		{
+			return QTextDocument::loadResource(type, name);
+		}
+
+		//相对路径按 baseUrl（.md 所在目录）解析
+		QUrl url = name;
+		if (url.scheme().isEmpty() && baseUrl().isValid())
+		{
+			url = baseUrl().resolved(name);
+		}
+
+		//自己维护缓存：不能在里面调 QTextDocument::resource()，它会回调 loadResource → 无限递归
+		const auto it = m_cache.constFind(url);
+		if (it != m_cache.constEnd())
+		{
+			return it.value();
+		}
+
+		if (url.isLocalFile() || url.scheme().isEmpty())
+		{
+			const QImage img(url.toLocalFile());
+			if (img.isNull())
+			{
+				m_cache.insert(url, QVariant());   //记住失败，别每次重排都读盘
+				return {};
+			}
+			m_cache.insert(url, img);
+			addResource(type, url, img);
+			return img;
+		}
+
+		if (url.scheme() == QLatin1String("http") || url.scheme() == QLatin1String("https"))
+		{
+			m_cache.insert(url, QVariant());
+			if (nam != nullptr && !requested.contains(url))
+			{
+				requested.insert(url, true);
+				QNetworkRequest req(url);
+				req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+				                 QNetworkRequest::NoLessSafeRedirectPolicy);
+				QNetworkReply* reply = nam->get(req);
+				const QUrl reqUrl = url;
+				connect(reply, &QNetworkReply::finished, this, [this, reply, reqUrl]() {
+					reply->deleteLater();
+					if (reply->error() != QNetworkReply::NoError)
+					{
+						return;
+					}
+					QImage img;
+					img.loadFromData(reply->readAll());
+					if (img.isNull())
+					{
+						return;
+					}
+					m_cache.insert(reqUrl, img);
+					addResource(QTextDocument::ImageResource, reqUrl, img);
+					markContentsDirty(0, characterCount());   //让已排版的 <img> 重新取图
+				});
+			}
+			return {};
+		}
+
+		return {};
+	}
+
+};
+
 static QString buildPreviewCss(const QWidget* w)
 {
 	bool dark = false;
@@ -98,6 +210,12 @@ MarkdownView::MarkdownView(QWidget *parent)
 	ui.textEdit->setLineWrapMode(QTextEdit::WidgetWidth);
 	ui.textEdit->document()->setDocumentMargin(16);
 	ui.textEdit->setReadOnly(true);
+
+	//用支持图片加载的 document 替换默认实现
+	m_doc = new MarkdownDocument(this);
+	m_nam = new QNetworkAccessManager(this);
+	m_doc->nam = m_nam;
+	ui.textEdit->setDocument(m_doc);
 }
 
 MarkdownView::~MarkdownView()
@@ -116,17 +234,61 @@ void MarkdownView::viewMarkdown(QString& text)
 			"%1").arg(text);
 	ui.textEdit->setPlainText(tips);
 #else
-	ui.textEdit->document()->setDefaultStyleSheet(buildPreviewCss(ui.textEdit));
+	m_doc->setDefaultStyleSheet(buildPreviewCss(ui.textEdit));
 	ui.textEdit->setMarkdown(text);
 #endif
 }
 
 // 以 HTML 呈现：内容由自研渲染器 MdRenderer 生成
 // （支持 GFM 表格、任务列表等），这里只负责套上样式。
-void MarkdownView::setMarkdown(const QString& markdown)
+void MarkdownView::setMarkdown(const QString& markdown, const QString& baseDir)
 {
-	const QString html = MdRenderer::renderToHtml(markdown);
+	if (m_doc != nullptr)
+	{
+		//相对路径的图片按 .md 所在目录解析
+		const QString dir = baseDir.isEmpty() ? QDir::currentPath() : baseDir;
+		m_doc->setBaseUrl(QUrl::fromLocalFile(dir.endsWith('/') ? dir : dir + QLatin1Char('/')));
+	}
+
+	//超过上限就只渲染前面一段：QTextDocument 的 HTML 解析是这里唯一的瓶颈
+	//（实测 1MB markdown → setHtml 1019ms，而 cmark 只 74ms），
+	//整篇塞进去会让界面卡死一两秒，对预览也没有意义。
+	static const int kMaxPreviewChars = 128 * 1024;
+	QString source = markdown;
+	bool truncated = false;
+	if (source.size() > kMaxPreviewChars)
+	{
+		source.truncate(kMaxPreviewChars);
+		truncated = true;
+	}
+
+	//内容没变就不重复渲染（打字只在末尾追加时也会走到这里）
+	if (source == m_lastMarkdown)
+	{
+		return;
+	}
+	m_lastMarkdown = source;
+
+	QElapsedTimer bench;
+	if (qEnvironmentVariableIsSet("NDD_BENCH_OPEN")) { bench.start(); }
+	QString html = MdRenderer::renderToHtml(source);
+	const qint64 tCmark = bench.restart();
+	if (truncated)
+	{
+		html += QString("<p class=\"ndd-empty\">…… 内容过长，预览仅显示前 %1 KB（全文 %2 字符）</p>")
+		            .arg(kMaxPreviewChars / 1024)
+		            .arg(markdown.size());
+	}
 	viewHtml(html);
+	if (qEnvironmentVariableIsSet("NDD_BENCH_OPEN"))
+	{
+		qInfo() << "  cmark_ms=" << tCmark << " sethmtl_ms=" << bench.elapsed() << " htmlLen=" << html.size();
+	}
+}
+
+int MarkdownView::loadedImageCount() const
+{
+	return m_doc != nullptr ? m_doc->validImageCount() : 0;
 }
 
 int MarkdownView::documentTextLength() const
@@ -138,6 +300,6 @@ void MarkdownView::viewHtml(const QString& html)
 {
 	// 样式通过 setDefaultStyleSheet 注入，而不是在 HTML 里写 <style>：
 	// QTextDocument 对 <style> 块支持不完整，这个方式最稳。
-	ui.textEdit->document()->setDefaultStyleSheet(buildPreviewCss(ui.textEdit));
+	m_doc->setDefaultStyleSheet(buildPreviewCss(ui.textEdit));
 	ui.textEdit->setHtml(html);
 }

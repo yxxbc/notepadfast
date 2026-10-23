@@ -47,7 +47,9 @@ PRE_TARGETDEPS += $$PWD/../build/lib/libqmyedit_qt5.a
 
 # Markdown 渲染：github/cmark-gfm（brew install cmark-gfm）
 macx {
-    CMARK_PREFIX = /opt/homebrew
+    #注意：不能用 /opt/homebrew 前缀，那里有 qtbase(Qt6) 的头文件，
+    #-I 进去会让 <QtCore/QtCore> 命中 Qt6 的伞头文件，和 Qt5 打架
+    CMARK_PREFIX = /opt/homebrew/opt/cmark-gfm
     INCLUDEPATH += $$CMARK_PREFIX/include
     LIBS += $$CMARK_PREFIX/lib/libcmark-gfm-extensions.a $$CMARK_PREFIX/lib/libcmark-gfm.a
 }

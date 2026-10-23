@@ -1,33 +1,35 @@
-﻿#pragma once
+#pragma once
 
 #include <QWidget>
+#include <QHash>
+#include <QUrl>
 #include "ui_markdownview.h"
 
+class QNetworkAccessManager;
+class MarkdownDocument;
+
+//Markdown 预览面板（VSCode 式侧边栏）
 class MarkdownView : public QWidget
 {
 	Q_OBJECT
 
 public:
 	MarkdownView(QWidget *parent = nullptr);
-
-	//编辑区内容变化时直接刷新（侧边面板模式）
-	void setMarkdown(const QString& markdown);
-
-	//自检用：当前渲染出的纯文本长度
-	int documentTextLength() const;
 	~MarkdownView();
-	void viewMarkdown(QString& text);
 
-	// 以 HTML 呈现。
-	//
-	// 为什么需要这个入口：
-	//   viewMarkdown() 走 QTextDocument::setMarkdown()，
-	//   渲染能力受 Qt 内置实现限制（GFM 表格、任务列表支持有限）。
-	//   本工程自带自研渲染器 MdRenderer（src/mdrenderer.*），
-	//   覆盖 GFM 表格 / 任务列表 / 嵌套列表等，先转成 HTML
-	//   再交给这里显示，效果更好。
+	//渲染一次。baseDir 是当前 .md 所在目录，用来解析相对路径的图片。
+	void setMarkdown(const QString& markdown, const QString& baseDir = QString());
+
+	//自检用
+	int documentTextLength() const;
+	int loadedImageCount() const;
+
+	void viewMarkdown(QString& text);
 	void viewHtml(const QString& html);
 
 private:
 	Ui::MarkdownViewClass ui;
+	MarkdownDocument* m_doc = nullptr;
+	QNetworkAccessManager* m_nam = nullptr;
+	QString m_lastMarkdown;   //上一次渲染的内容，内容没变就跳过
 };

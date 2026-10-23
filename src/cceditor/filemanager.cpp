@@ -10,6 +10,7 @@
 #include <QtGlobal>
 #include <qscilexer.h>
 #include <QFileInfo>
+#include <QElapsedTimer>
 
 LangType detectLanguage(QString& headContent, QString& filepath);
 
@@ -536,7 +537,10 @@ int FileManager::loadFileDataInText(ScintillaEditView* editView, QString filePat
 	QString fileText;
 	bool isErrorCode = false;
 
+	QElapsedTimer benchOpen;
+	if (qEnvironmentVariableIsSet("NDD_BENCH_OPEN")) { benchOpen.start(); }
 	fileTextCode = CmpareMode::scanFileOutPut(file, fileTextCode, filePath, fileText, isErrorCode);
+	if (qEnvironmentVariableIsSet("NDD_BENCH_OPEN")) { qInfo() << "open_read_detect_ms:" << benchOpen.restart() << "size=" << fileSize << "chars=" << fileText.size(); }
 
 	//如果文件是空的。检查一下，有可能在临时文件损坏情况下出现，外面需要使用
 	if (fileText.size() == 0)
@@ -619,10 +623,13 @@ int FileManager::loadFileDataInText(ScintillaEditView* editView, QString filePat
 		}
 	}
 
+	if (qEnvironmentVariableIsSet("NDD_BENCH_OPEN")) { qInfo() << "open_lexer_ms:" << benchOpen.restart(); }
+
 	//如果检测到时16进制文件，但是强行以二进制打开，则有限走setUtf8Text。
 	if (!isErrorCode)
 	{
 		editView->setText(fileText);
+		if (qEnvironmentVariableIsSet("NDD_BENCH_OPEN")) { qInfo() << "open_settext_ms:" << benchOpen.restart(); }
 	}
 	else
 	{

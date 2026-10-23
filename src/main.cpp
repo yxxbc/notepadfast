@@ -12,6 +12,7 @@
 #include <qobject.h>
 #include <QThread>
 #include <QDir>
+#include <QDateTime>
 #include <QElapsedTimer>
 #include <QTimer>
 
@@ -110,6 +111,60 @@ static bool isRunningNddProcess(pid_t pid)
 	return selfComm.readAll().trimmed() == otherComm.readAll().trimmed();
 }
 #endif
+#endif
+
+
+#ifdef Q_OS_MAC
+#include <libproc.h>
+
+//pid 是否真的是"本程序的另一个实例"：进程不存在，或 pid 已被别的进程复用，都算残留。
+static bool isOurProcess(pid_t pid)
+{
+	if (pid <= 0 || 0 != kill(pid, 0))
+	{
+		return false;
+	}
+
+	char pathBuf[PROC_PIDPATHINFO_MAXSIZE] = {0};
+	if (proc_pidpath(pid, pathBuf, sizeof(pathBuf)) <= 0)
+	{
+		return false;
+	}
+
+	const QString other = QString::fromLocal8Bit(pathBuf);
+	const QString self = QCoreApplication::applicationFilePath();
+	return QFileInfo(other).fileName() == QFileInfo(self).fileName();
+}
+
+//布局（create 32 字节）：[0..8) pid，[16..24) 最近心跳时间(ms)
+static const int kHeartbeatOffset = 16;
+
+static qint64 readHeartbeat()
+{
+	qint64 ts = 0;
+	nddShared.lock();
+	if (nddShared.data() != nullptr && nddShared.size() >= kHeartbeatOffset + (int)sizeof(qint64))
+	{
+		memcpy(&ts, (char*)nddShared.data() + kHeartbeatOffset, sizeof(qint64));
+	}
+	nddShared.unlock();
+	return ts;
+}
+
+static void writeHeartbeat()
+{
+	if (!nddShared.isAttached())
+	{
+		return;
+	}
+	nddShared.lock();
+	if (nddShared.data() != nullptr && nddShared.size() >= kHeartbeatOffset + (int)sizeof(qint64))
+	{
+		const qint64 ts = QDateTime::currentMSecsSinceEpoch();
+		memcpy((char*)nddShared.data() + kHeartbeatOffset, &ts, sizeof(qint64));
+	}
+	nddShared.unlock();
+}
 #endif
 
 #ifdef Q_OS_MAC
@@ -413,7 +468,26 @@ if ((arguments.size() == 4) && (arguments[2] == QString("-n")))
 			}
 #elif defined (Q_OS_MAC)
 {
-       //mac下面不需要，有他自身的机制保证
+		//mac 下 QSharedMemory 是 POSIX 共享内存段，进程被强杀/崩溃时不会 unlink，
+		//下次启动 attach 仍会成功。若直接 return 0，表现就是"点了没反应、窗口不出现"。
+		//所以先校验里面记的 pid 是否真的还活着。
+		pid_t pid = 0;
+		if (!nddShared.attach())
+		{
+			shared.detach();
+			goto mac_goon;
+		}
+		nddShared.lock();
+		memcpy(&pid, nddShared.data(), sizeof(pid_t));
+		nddShared.unlock();
+
+		const bool stale = !isOurProcess(pid);
+		if (stale)
+		{
+			nddShared.detach();
+			shared.detach();
+			goto mac_goon;
+		}
 }
 #else
             pid_t pid;
@@ -449,12 +523,10 @@ if ((arguments.size() == 4) && (arguments[2] == QString("-n")))
 #if defined(Q_OS_WIN)
 	shared.create(32);
 #elif defined (Q_OS_MAC)
-{
-       //mac下面不需要，有他自身的机制保证。当程序已经在线时，再打开程序，系统会自动调用已经存在的程序出现
-        //不需要使用类似linux下面的机制。
-     shared.create(32);
-     nddShared.create(32);
-}
+//注意：label 不能写在 {} 里面，否则上面的 goto 是跳进块作用域（UB，实测直接崩）
+mac_goon:
+	shared.create(32);
+	nddShared.create(32);
 #else
 
 unix_goon:
