@@ -11,7 +11,7 @@ HEADERS += *.h \
            cceditor/ccnotepad.h \
            cceditor/filemanager.h
 
-SOURCES += *.cpp *.cc \
+SOURCES += *.cpp \
            cceditor/ccnotepad.cpp \
            cceditor/filemanager.cpp
 

@@ -26,7 +26,6 @@ jobs:
           export PATH="$(brew --prefix qt@5)/bin:$PATH"
           macdeployqt build/bin/NotepadFast.app -always-overwrite
           cp -R src/themes build/bin/NotepadFast.app/Contents/MacOS/
-          cp -R src/plugin build/bin/NotepadFast.app/Contents/MacOS/plugin-src || true
 
       - uses: actions/upload-artifact@v4
         with:
