@@ -27,13 +27,6 @@ jobs:
           macdeployqt build/bin/NotepadFast.app -always-overwrite
           cp -R src/themes build/bin/NotepadFast.app/Contents/MacOS/
 
-      - name: Startup bench
-        run: |
-          APP=build/bin/NotepadFast.app/Contents/MacOS/NotepadFast
-          for i in 1 2 3; do
-            QT_QPA_PLATFORM=offscreen NDD_BENCH_STARTUP=1 "$APP" 2>&1 | grep bench_
-          done
-
       - uses: actions/upload-artifact@v4
         with:
           name: NotepadFast-macos-arm64
