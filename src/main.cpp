@@ -12,6 +12,8 @@
 #include <qobject.h>
 #include <QThread>
 #include <QDir>
+#include <QElapsedTimer>
+#include <QTimer>
 
 #ifdef Q_OS_UNIX
 #include <QStyleFactory>
@@ -111,26 +113,26 @@ static bool isRunningNddProcess(pid_t pid)
 #endif
 
 #ifdef Q_OS_MAC
+#include <QFileOpenEvent>
 
-static void openfile(QString filePath)
+//主窗口，创建前为 nullptr。Finder 双击关联文件时，FileOpen 事件可能在窗口
+//创建之前就到达（冷启动），此时只能先记下路径，等窗口建好再打开。
+static CCNotePad* g_pMainNotepad = nullptr;
+
+static void openfile(const QString& filePath)
 {
+    if (g_pMainNotepad == nullptr)
+    {
+        return;
+    }
 
-    qlonglong winId;
-    shared.lock();
-    memcpy(&winId,shared.data(),sizeof(qlonglong));
-    shared.unlock();
-
-     QWidget *pMain = QWidget::find((WId)winId);
-     CCNotePad* pNotePad = dynamic_cast<CCNotePad*>(pMain);
-     if(pNotePad != nullptr)
-     {
-         if(!filePath.isEmpty())
-         {
-            pNotePad->openFile(filePath);
-         }
-         pNotePad->activateWindow();
-         pNotePad->showNormal();
-     }
+    if (!filePath.isEmpty())
+    {
+        g_pMainNotepad->openFile(filePath);
+    }
+    //从 Finder 唤起时窗口可能被压在其它应用后面
+    g_pMainNotepad->raise();
+    g_pMainNotepad->activateWindow();
 }
 
 class MyApplication : public QApplication
@@ -146,8 +148,15 @@ class MyApplication : public QApplication
            if (event->type() == QEvent::FileOpen) {
                QFileOpenEvent *openEvent = static_cast<QFileOpenEvent *>(event);
                qDebug() << "Open file" << openEvent->file();
-               s_openfile = openEvent->file();
-               openfile(s_openfile);
+               if (g_pMainNotepad != nullptr)
+               {
+                   openfile(openEvent->file());
+               }
+               else
+               {
+                   //冷启动：窗口还没建好，先攒着，main() 里补开
+                   s_openfile = openEvent->file();
+               }
            }
 
            return QApplication::event(event);
@@ -158,6 +167,9 @@ class MyApplication : public QApplication
 
 int main(int argc, char *argv[])
 {
+	QElapsedTimer s_startupTimer;
+	s_startupTimer.start();
+
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
 	QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
 #elif (QT_VERSION >= QT_VERSION_CHECK(5, 6, 0))
@@ -189,6 +201,7 @@ int main(int argc, char *argv[])
 #endif
 	a.setApplicationDisplayName(c_strTitle);
 	a.setApplicationName(c_strTitle);
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "bench_app_ms:" << s_startupTimer.elapsed(); }
 
 	QStringList arguments = QCoreApplication::arguments();
 
@@ -473,6 +486,7 @@ drop_old:
 	pMainNotepad->quickshow();
 
 	pMainNotepad->syncCurSkinToMenu(id);
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "bench_window_ms:" << s_startupTimer.elapsed(); }
 
 
 #ifdef Q_OS_WIN
@@ -543,6 +557,23 @@ drop_old:
 	}
 #ifdef Q_OS_WIN
 	pMainNotepad->checkAppFont();
+#endif
+
+#ifdef Q_OS_MAC
+	g_pMainNotepad = pMainNotepad;
+	//Finder 双击关联文件时的冷启动路径：事件早于窗口创建，这里补开
+	if (!a.s_openfile.isEmpty())
+	{
+		pMainNotepad->openFile(a.s_openfile);
+		a.s_openfile.clear();
+		pMainNotepad->raise();
+		pMainNotepad->activateWindow();
+	}
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP"))
+	{
+		qInfo() << "startup_ms:" << s_startupTimer.elapsed();
+		QTimer::singleShot(0, qApp, &QCoreApplication::quit);
+	}
 #endif
 
 	a.exec();
