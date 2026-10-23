@@ -91,7 +91,7 @@
     </property>
     <widget class="QMenu" name="menuRecene_File">
      <property name="title">
-      <string>Recene File</string>
+      <string>Recent Files</string>
      </property>
     </widget>
     <addaction name="actionNewFile"/>
@@ -473,7 +473,7 @@
    </widget>
    <widget class="QMenu" name="menuSet">
     <property name="title">
-     <string>Se&amp;t</string>
+     <string>&amp;Settings</string>
     </property>
     <widget class="QMenu" name="menuLanguage_2">
      <property name="title">
@@ -489,29 +489,18 @@
     <addaction name="actionLanguage_File_Suffix"/>
     <addaction name="actionShortcut_Key_Manager"/>
    </widget>
-   <widget class="QMenu" name="menuAbout">
-    <property name="title">
-     <string>Feedback</string>
-    </property>
-    <addaction name="actionCC_Pad"/>
-   </widget>
-   <widget class="QMenu" name="menuAbout_2">
-    <property name="title">
-     <string>About</string>
-    </property>
-    <addaction name="actioninfo"/>
-   </widget>
    <widget class="QMenu" name="menuTools">
     <property name="title">
      <string>T&amp;ools</string>
     </property>
     <addaction name="actionMd5_Sha"/>
-   </widget>
-   <widget class="QMenu" name="menuPlugin">
-    <property name="title">
-     <string>Plugin</string>
-    </property>
     <addaction name="actionPlugin_Manager"/>
+    <addaction name="actionCC_Pad"/>
+    <widget class="QMenu" name="menuPlugin">
+     <property name="title">
+      <string>Plugins</string>
+     </property>
+    </widget>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
@@ -521,10 +510,7 @@
    <addaction name="menuLanguage"/>
    <addaction name="menuSet"/>
    <addaction name="menuTools"/>
-   <addaction name="menuPlugin"/>
-   <addaction name="menuCompare"/>
-   <addaction name="menuAbout"/>
-   <addaction name="menuAbout_2"/>
+   <addaction name="actioninfo"/>
   </widget>
   <widget class="QToolBar" name="mainToolBar">
    <property name="movable">
@@ -797,7 +783,7 @@
   </action>
   <action name="actionCC_Pad">
    <property name="text">
-    <string>BugFix</string>
+    <string>Report a Bug</string>
    </property>
   </action>
   <action name="actionFile_compare">
@@ -1594,12 +1580,12 @@
   </action>
   <action name="actionOpen_In_Text">
    <property name="text">
-    <string>Open In Text</string>
+    <string>View as Text</string>
    </property>
   </action>
   <action name="actionOpen_In_Bin">
    <property name="text">
-    <string>Open In Bin</string>
+    <string>View as Hex</string>
    </property>
   </action>
   <action name="actionRemove_leading_blank">
@@ -1609,7 +1595,7 @@
   </action>
   <action name="actionRemove_eding_blank">
    <property name="text">
-    <string>Remove  End Blank</string>
+    <string>Remove Trailing Blanks</string>
    </property>
   </action>
   <action name="actionRemove_Head_End_Blank">
@@ -1619,7 +1605,7 @@
   </action>
   <action name="actionColumn_Block_Editing">
    <property name="text">
-    <string>Column Block Editing</string>
+    <string>Column Edit ...</string>
    </property>
    <property name="shortcut">
     <string>Alt+X</string>
@@ -1698,7 +1684,7 @@
   </action>
   <action name="actionColumn_Edit_Mode">
    <property name="text">
-    <string>Column Block Mode</string>
+    <string>Column Mode</string>
    </property>
   </action>
   <action name="actionTAB_to_Space">
@@ -2006,7 +1992,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>FileListView</string>
+    <string>File List</string>
    </property>
   </action>
   <action name="actionShow_ToolBar">
@@ -2030,7 +2016,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Show Web Addr(Not recommended)</string>
+    <string>Show URL Links</string>
    </property>
   </action>
   <action name="actionLanguage_File_Suffix">
@@ -2060,7 +2046,7 @@
   </action>
   <action name="actionMd5_Sha">
    <property name="text">
-    <string>Md5/Sha</string>
+    <string>MD5 / SHA</string>
    </property>
   </action>
  </widget>

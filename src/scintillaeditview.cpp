@@ -8,7 +8,6 @@
 #include "findwin.h"
 #include "filemanager.h"
 #include "shortcutkeymgr.h"
-#include "markdownview.h"
 
 #include <Scintilla.h>
 #include <SciLexer.h>
@@ -4310,27 +4309,12 @@ void ScintillaEditView::deleteTailFileThread()
 }
 #endif
 
-//显示markdown编辑器
+//Markdown 预览：交给主窗口的侧边面板统一处理（不再弹独立窗口）
 void ScintillaEditView::on_viewMarkdown()
 {
-	if (m_markdownWin.isNull())
+	CCNotePad* pMain = qobject_cast<CCNotePad*>(window());
+	if (pMain != nullptr)
 	{
-		m_markdownWin = new MarkdownView(this);
-		m_markdownWin->setAttribute(Qt::WA_DeleteOnClose);
-		connect(this, &ScintillaEditView::textChanged, this, &ScintillaEditView::on_updataMarkdown);
-	}
-	
-	QString text = this->text();
-	m_markdownWin->viewMarkdown(text);
-	m_markdownWin->show();
-}
-
-void ScintillaEditView::on_updataMarkdown()
-{
-	if (!m_markdownWin.isNull())
-	{
-		QString text = this->text();
-		m_markdownWin->viewMarkdown(text);
-		m_markdownWin->show();
+		pMain->slot_markdownPreview();
 	}
 }

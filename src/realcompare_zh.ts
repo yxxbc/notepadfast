@@ -380,7 +380,7 @@ Open a file first, then try again.</source>
     <message>
         <location filename="cceditor/ccnotepad.ui" line="94"/>
         <location filename="ui_ccnotepad.h" line="1628"/>
-        <source>Recene File</source>
+        <source>Recent Files</source>
         <translation type="unfinished">最近文件</translation>
     </message>
     <message>
@@ -818,7 +818,7 @@ Open a file first, then try again.</source>
     <message>
         <location filename="cceditor/ccnotepad.ui" line="827"/>
         <location filename="ui_ccnotepad.h" line="1417"/>
-        <source>BugFix</source>
+        <source>Report a Bug</source>
         <translation type="unfinished">问题反馈</translation>
     </message>
     <message>
@@ -1589,7 +1589,7 @@ Open a file first, then try again.</source>
     <message>
         <location filename="cceditor/ccnotepad.ui" line="2100"/>
         <location filename="ui_ccnotepad.h" line="1626"/>
-        <source>Md5/Sha</source>
+        <source>MD5 / SHA</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1599,13 +1599,13 @@ Open a file first, then try again.</source>
     <message>
         <location filename="cceditor/ccnotepad.ui" line="1634"/>
         <location filename="ui_ccnotepad.h" line="1522"/>
-        <source>Open In Text</source>
+        <source>View as Text</source>
         <translation type="unfinished">以文本模式打开</translation>
     </message>
     <message>
         <location filename="cceditor/ccnotepad.ui" line="1639"/>
         <location filename="ui_ccnotepad.h" line="1523"/>
-        <source>Open In Bin</source>
+        <source>View as Hex</source>
         <translation type="unfinished">以二进制模式打开</translation>
     </message>
     <message>
@@ -1617,7 +1617,7 @@ Open a file first, then try again.</source>
     <message>
         <location filename="cceditor/ccnotepad.ui" line="1649"/>
         <location filename="ui_ccnotepad.h" line="1525"/>
-        <source>Remove  End Blank</source>
+        <source>Remove Trailing Blanks</source>
         <translation type="unfinished">去除行尾空白</translation>
     </message>
     <message>
@@ -1629,7 +1629,7 @@ Open a file first, then try again.</source>
     <message>
         <location filename="cceditor/ccnotepad.ui" line="1659"/>
         <location filename="ui_ccnotepad.h" line="1527"/>
-        <source>Column Block Editing</source>
+        <source>Column Edit ...</source>
         <translation type="unfinished">列块编辑</translation>
     </message>
     <message>
@@ -1713,7 +1713,7 @@ Open a file first, then try again.</source>
     <message>
         <location filename="cceditor/ccnotepad.ui" line="1738"/>
         <location filename="ui_ccnotepad.h" line="1544"/>
-        <source>Column Block Mode</source>
+        <source>Column Mode</source>
         <translation type="unfinished">列块模式...</translation>
     </message>
     <message>
@@ -1975,7 +1975,7 @@ Open a file first, then try again.</source>
     <message>
         <location filename="cceditor/ccnotepad.ui" line="2046"/>
         <location filename="ui_ccnotepad.h" line="1617"/>
-        <source>FileListView</source>
+        <source>File List</source>
         <translation type="unfinished">文件列表窗口</translation>
     </message>
     <message>
@@ -1994,7 +1994,7 @@ Open a file first, then try again.</source>
     <message>
         <location filename="cceditor/ccnotepad.ui" line="2070"/>
         <location filename="ui_ccnotepad.h" line="1620"/>
-        <source>Show Web Addr(Not recommended)</source>
+        <source>Show URL Links</source>
         <translation type="unfinished">显示网站（不推荐开启）</translation>
     </message>
     <message>
@@ -2710,7 +2710,7 @@ Do you want to reload it?</source>
     <message>
         <location filename="cceditor/ccnotepad.ui" line="539"/>
         <location filename="ui_ccnotepad.h" line="1672"/>
-        <source>Plugin</source>
+        <source>Plugins</source>
         <translation type="unfinished">插件</translation>
     </message>
     <message>
@@ -4646,7 +4646,7 @@ Left Equal ratio %4 Right Equal ratio %5</source>
     <message>
         <location filename="filelistview.ui" line="14"/>
         <location filename="ui_filelistview.h" line="51"/>
-        <source>FileListView</source>
+        <source>File List</source>
         <translation type="unfinished">文件列表窗口</translation>
     </message>
 </context>

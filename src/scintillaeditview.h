@@ -7,7 +7,6 @@
 #include <unordered_set>
 #include "common.h"
 #include "Sorters.h"
-#include "markdownview.h"
 
 
 typedef sptr_t(*SCINTILLA_FUNC) (sptr_t ptr, unsigned int, uptr_t, sptr_t);
@@ -299,7 +298,6 @@ private slots:
 
 	void slot_bookMarkClicked(int margin, int line, Qt::KeyboardModifiers state);
 	void on_viewMarkdown();
-	void on_updataMarkdown();
 
 private:
 
@@ -329,7 +327,6 @@ private:
 
 	QMap<qint64, quint32> m_addrLineNumMap;//大文本模式下，地址和行号的对应关系。只需要首尾即可
 
-	QPointer<MarkdownView> m_markdownWin;
 
 public:
 	static int s_tabLens;

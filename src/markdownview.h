@@ -1,14 +1,17 @@
 ﻿#pragma once
 
-#include <QMainWindow>
+#include <QWidget>
 #include "ui_markdownview.h"
 
-class MarkdownView : public QMainWindow
+class MarkdownView : public QWidget
 {
 	Q_OBJECT
 
 public:
 	MarkdownView(QWidget *parent = nullptr);
+
+	//编辑区内容变化时直接刷新（侧边面板模式）
+	void setMarkdown(const QString& markdown);
 	~MarkdownView();
 	void viewMarkdown(QString& text);
 

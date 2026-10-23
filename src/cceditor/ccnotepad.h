@@ -95,6 +95,10 @@ class CCNotePad : public QMainWindow
 	Q_OBJECT
 
 public:
+	//Markdown 侧边预览开关（VSCode 式分栏，不再是弹窗）
+	void slot_markdownPreview();
+	void hookMarkdownLiveUpdate();
+	void refreshMarkdownPreview();
 	CCNotePad(bool isMainWindows = true, QWidget *parent = Q_NULLPTR);
 	~CCNotePad();
 
@@ -349,7 +353,6 @@ private slots:
 	void slot_showToolBar(bool);
 	void slot_dynamicLoadToolMenu();
 	void slot_batchFind();
-	void slot_markdownPreview();
 	void on_loadReceneFile();
 	void slot_pluginMgr();
 #ifdef NO_PLUGIN
@@ -615,7 +618,9 @@ private:
 
 
 	QPointer<QMainWindow> m_batchFindWin;
-	QPointer<MarkdownView> m_mdPreviewWin;
+	MarkdownView* m_mdPreview;
+	QTimer* m_mdPreviewTimer;
+	QMetaObject::Connection m_mdLiveConn;
 
 	int m_curIconSize;
 	int m_curColorIndex;

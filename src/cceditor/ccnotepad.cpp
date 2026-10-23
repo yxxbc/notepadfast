@@ -1152,6 +1152,28 @@ CCNotePad::CCNotePad(bool isMainWindows, QWidget *parent)
 	//这里在主线程里面调用一下，避免后续因为没有创建，而可能在子线程中初始化里面的值，而且多个子线程引发重入竞争问题
 	//20220402在1.11中发现这个问题。所以加上这里的手动调用
 	DocTypeListView::initSupportFileTypes();
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  filetypes_ms:" << bench.restart(); }
+
+	//Markdown 预览面板：和编辑区同在一个 QSplitter 里，默认隐藏
+	m_mdPreview = new MarkdownView(this);
+	m_mdPreview->setMinimumWidth(260);
+	m_mdPreview->hide();
+	{
+		QSplitter* pSplit = new QSplitter(Qt::Horizontal, ui.centralWidget);
+		ui.horizontalLayout->removeWidget(ui.editTabWidget);
+		ui.editTabWidget->setParent(pSplit);
+		pSplit->addWidget(ui.editTabWidget);
+		pSplit->addWidget(m_mdPreview);
+		pSplit->setStretchFactor(0, 3);
+		pSplit->setStretchFactor(1, 2);
+		pSplit->setChildrenCollapsible(false);
+		ui.horizontalLayout->addWidget(pSplit);
+	}
+	m_mdPreviewTimer = new QTimer(this);
+	m_mdPreviewTimer->setSingleShot(true);
+	m_mdPreviewTimer->setInterval(200);
+	connect(m_mdPreviewTimer, &QTimer::timeout, this, &CCNotePad::refreshMarkdownPreview);
+	if (qEnvironmentVariableIsSet("NDD_MD_PREVIEW")) { slot_markdownPreview(); }
 	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  filetypes_ms"; }
 
 	ui.editTabWidget->setTabsClosable(true);
@@ -1721,7 +1743,7 @@ void CCNotePad::slot_dynamicLoadToolMenu()
 		//   插件与本程序是两个模块，跨模块的 RTTI / dynamic_cast 不可靠，
 		//   插件无法安全取得 ui.editTabWidget 里的当前编辑区。
 		//   在源码内实现则是一行 dynamic_cast，稳定可靠。
-		ui.menuTools->addAction(tr("Markdown Preview"), this, &CCNotePad::slot_markdownPreview);
+		ui.menuView->addAction(tr("Markdown Preview"), this, &CCNotePad::slot_markdownPreview);
 
 #ifdef NO_PLUGIN
 		//动态加载插件
@@ -1907,7 +1929,7 @@ void CCNotePad::loadPluginProcs(QString strLibDir, QMenu* pMenu)
 }
 #endif
 
-// Markdown 预览：取当前编辑区内容，渲染为 HTML 后单独开窗显示。
+// Markdown 预览：VSCode 式右侧分栏面板，随当前文档实时刷新。
 //
 // 为什么写在主程序内而不是做成插件：
 //   编辑控件类 ScintillaEditView 定义在本模块（scintillaeditview.h），
@@ -1917,53 +1939,49 @@ void CCNotePad::loadPluginProcs(QString strLibDir, QMenu* pMenu)
 //   在源码内实现则只需一行 dynamic_cast，稳定可靠。
 void CCNotePad::slot_markdownPreview()
 {
-	// 1) 取当前编辑区。
-	//    与 getCurEditView() 相同的取法，但**不做只读拦截**：
-	//    只读文档同样应该允许预览内容。
-	QWidget* pw = ui.editTabWidget->currentWidget();
-	ScintillaEditView* pEditView = dynamic_cast<ScintillaEditView*>(pw);
-	if (pEditView == nullptr)
+	if (m_mdPreview == nullptr)
 	{
-		QMessageBox::information(this, tr("Markdown Preview"),
-			tr("No document is open.\n\nOpen a file first, then try again."));
+		return;
+	}
+	const bool show = !m_mdPreview->isVisible();
+	m_mdPreview->setVisible(show);
+	if (show)
+	{
+		hookMarkdownLiveUpdate();
+		refreshMarkdownPreview();
+	}
+}
+
+//把当前文档的编辑信号接到预览刷新上（切换标签页/重新打开面板时都要重挂）
+void CCNotePad::hookMarkdownLiveUpdate()
+{
+	if (m_mdLiveConn)
+	{
+		disconnect(m_mdLiveConn);
+	}
+	ScintillaEditView* pEdit = dynamic_cast<ScintillaEditView*>(ui.editTabWidget->currentWidget());
+	if (pEdit == nullptr)
+	{
+		return;
+	}
+	m_mdLiveConn = connect(pEdit, &ScintillaEditView::textChanged, this, [this]() {
+		if (m_mdPreviewTimer != nullptr)
+		{
+			m_mdPreviewTimer->start();
+		}
+	});
+}
+
+//渲染一次。大文件/频繁输入时靠 200ms 去抖，避免每敲一个字重排整篇。
+void CCNotePad::refreshMarkdownPreview()
+{
+	if (m_mdPreview == nullptr || !m_mdPreview->isVisible())
+	{
 		return;
 	}
 
-	// 2) 取全文并渲染为 HTML（自研渲染器，支持 GFM 表格等）
-	const QString markdown = pEditView->text();
-	const QString html = MdRenderer::renderToHtml(markdown);
-
-	// 3) 复用同一个预览窗口，避免重复开窗。
-	//    窗口设了 WA_DeleteOnClose，用户关掉后 QPointer 自动置空，
-	//    下次点击会新建。
-	if (m_mdPreviewWin.isNull())
-	{
-		MarkdownView* pNew = new MarkdownView(this);
-		pNew->setAttribute(Qt::WA_DeleteOnClose);
-		m_mdPreviewWin = pNew;
-	}
-
-	MarkdownView* pView = m_mdPreviewWin.data();
-	if (pView == nullptr)
-		return;
-
-	// 4) 文件名：ndd 把路径存在控件的 "filePath" property 里
-	QString filePath = getFilePathProperty(pEditView);
-	QString shortName = filePath;
-	const int slash = qMax(shortName.lastIndexOf('/'), shortName.lastIndexOf('\\'));
-	if (slash >= 0)
-		shortName = shortName.mid(slash + 1);
-
-	// 5) 窗口标题（带文件名）。用 tr() 以便跟随界面语言切换。
-	const QString title = shortName.isEmpty()
-		? tr("Markdown Preview")
-		: tr("Markdown Preview - %1").arg(shortName);
-	pView->setWindowTitle(title);
-
-	pView->viewHtml(html);
-	pView->show();
-	pView->raise();
-	pView->activateWindow();
+	ScintillaEditView* pEdit = dynamic_cast<ScintillaEditView*>(ui.editTabWidget->currentWidget());
+	m_mdPreview->setMarkdown(pEdit == nullptr ? QString() : pEdit->text());
 }
 
 //批量查找替换
@@ -2783,6 +2801,12 @@ void CCNotePad::updateTitleToCurDocFilePath()
 //切换tab后
 void CCNotePad::slot_tabCurrentChanged(int index)
 {
+	if (m_mdPreview != nullptr && m_mdPreview->isVisible())
+	{
+		hookMarkdownLiveUpdate();
+		refreshMarkdownPreview();
+	}
+
 	QWidget* pw = ui.editTabWidget->widget(index);
 	if (pw != nullptr)
 	{

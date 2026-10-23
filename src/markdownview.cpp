@@ -7,6 +7,7 @@
 #include <QFont>
 #include <QStringList>
 #include <QApplication>
+#include "mdrenderer.h"
 
 // ============================================================
 // 预览用样式表
@@ -89,7 +90,7 @@ static QString buildPreviewCss(const QWidget* w)
 
 
 MarkdownView::MarkdownView(QWidget *parent)
-	: QMainWindow(parent)
+	: QWidget(parent)
 {
 	ui.setupUi(this);
 
@@ -122,6 +123,12 @@ void MarkdownView::viewMarkdown(QString& text)
 
 // 以 HTML 呈现：内容由自研渲染器 MdRenderer 生成
 // （支持 GFM 表格、任务列表等），这里只负责套上样式。
+void MarkdownView::setMarkdown(const QString& markdown)
+{
+	const QString html = MdRenderer::renderToHtml(markdown);
+	viewHtml(html);
+}
+
 void MarkdownView::viewHtml(const QString& html)
 {
 	// 样式通过 setDefaultStyleSheet 注入，而不是在 HTML 里写 <style>：
