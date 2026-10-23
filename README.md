@@ -11,6 +11,7 @@ src/                应用源码（*.cpp / *.h / *.ui 平铺 + cceditor/），Re
   notepad/          默认语言/样式模板（首次运行释放到配置目录）→ :/notepad/...
   themes/           Lexer 主题 ini，随二进制旁侧部署（非 qrc）
   macicon/          macOS 图标源文件
+tools/svg2png/      把 SVG 图标渲染成 PNG（图标要进 qrc 用，见该目录 README）
   plugin/           插件示例（helloworld 可作为模板）
 third_party/qscint/ 内置 QScintilla 静态库（第三方，勿改）
 build/              构建输出（bin/ 可执行文件、lib/ 静态库），已 gitignore

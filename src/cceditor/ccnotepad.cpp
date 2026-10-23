@@ -1310,7 +1310,8 @@ void CCNotePad::quickshow()
 				        << "cur=" << (cur ? cur->metaObject()->className() : "null")
 				        << "textLen=" << (m_mdPreview ? m_mdPreview->documentTextLength() : -1)
 				        << "loadedImgs=" << (m_mdPreview ? m_mdPreview->loadedImageCount() : -1)
-				        << "btnChecked=" << (m_mdPreviewBtn && m_mdPreviewBtn->isChecked());
+				        << "btnChecked=" << (m_mdPreviewBtn && m_mdPreviewBtn->isChecked())
+				        << "btnIconNull=" << (m_mdPreviewBtn ? m_mdPreviewBtn->icon().isNull() : true);
 			});
 		});
 	}
