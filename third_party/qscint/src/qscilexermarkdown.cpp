@@ -145,7 +145,7 @@ QFont QsciLexerMarkdown::defaultFont(int style) const
 #if defined(Q_OS_WIN)
         f = QFont("Courier New",QsciLexer::s_defaultFontSize);
 #elif defined(Q_OS_MAC)
-        f = QFont("Courier", 12);
+        f = QFont("Menlo", 12); // macOS: 等宽字体用系统自带的 Menlo
 #else
         f = QFont("Bitstream Vera Sans Mono", 9);
 #endif
@@ -159,7 +159,7 @@ QFont QsciLexerMarkdown::defaultFont(int style) const
 #if defined(Q_OS_WIN)
         f = QFont("Courier New",QsciLexer::s_defaultFontSize);
 #elif defined(Q_OS_MAC)
-        f = QFont("Courier", 12);
+        f = QFont("Menlo", 12); // macOS: 等宽字体用系统自带的 Menlo
 #else
         f = QFont("Bitstream Vera Sans Mono", 9);
 #endif

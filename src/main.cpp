@@ -232,7 +232,7 @@ int main(int argc, char *argv[])
 #endif
 #ifdef Q_OS_MAC
 	//这里的字体大小，务必要和查找结果框的高度匹配，否则会结构字体拥挤
-	QFont font("Courier New,11,-1,5,50,0,0,0,0,0,Regular", 11);
+	QFont font("Menlo", 11);
 	// qDebug() << "font name mac";
 	QApplication::setFont(font);
 	// qDebug() << QApplication::font().toString();

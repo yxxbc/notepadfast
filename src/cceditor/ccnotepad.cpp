@@ -1,6 +1,8 @@
 ﻿#include <memory>
 #include "ccnotepad.h"
 #include <QElapsedTimer>
+#include <QSplitter>
+#include <QToolButton>
 #include "filemanager.h"
 #include "Encode.h"
 #include "findwin.h"
@@ -1154,27 +1156,6 @@ CCNotePad::CCNotePad(bool isMainWindows, QWidget *parent)
 	DocTypeListView::initSupportFileTypes();
 	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  filetypes_ms:" << bench.restart(); }
 
-	//Markdown 预览面板：和编辑区同在一个 QSplitter 里，默认隐藏
-	m_mdPreview = new MarkdownView(this);
-	m_mdPreview->setMinimumWidth(260);
-	m_mdPreview->hide();
-	{
-		QSplitter* pSplit = new QSplitter(Qt::Horizontal, ui.centralWidget);
-		ui.horizontalLayout->removeWidget(ui.editTabWidget);
-		ui.editTabWidget->setParent(pSplit);
-		pSplit->addWidget(ui.editTabWidget);
-		pSplit->addWidget(m_mdPreview);
-		pSplit->setStretchFactor(0, 3);
-		pSplit->setStretchFactor(1, 2);
-		pSplit->setChildrenCollapsible(false);
-		ui.horizontalLayout->addWidget(pSplit);
-	}
-	m_mdPreviewTimer = new QTimer(this);
-	m_mdPreviewTimer->setSingleShot(true);
-	m_mdPreviewTimer->setInterval(200);
-	connect(m_mdPreviewTimer, &QTimer::timeout, this, &CCNotePad::refreshMarkdownPreview);
-	if (qEnvironmentVariableIsSet("NDD_MD_PREVIEW")) { slot_markdownPreview(); }
-	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  filetypes_ms"; }
 
 	ui.editTabWidget->setTabsClosable(true);
 
@@ -1292,6 +1273,46 @@ void CCNotePad::quickshow()
 	//20220402在1.11中发现这个问题。所以加上这里的手动调用
 	DocTypeListView::initSupportFileTypes();
 	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  filetypes_ms:" << bench.restart(); }
+
+	//Markdown 预览面板：和编辑区同在一个 QSplitter 里，默认隐藏
+	m_mdPreview = new MarkdownView(this);
+	m_mdPreview->setMinimumWidth(260);
+	m_mdPreview->hide();
+	{
+		QSplitter* pSplit = new QSplitter(Qt::Horizontal, ui.centralWidget);
+		ui.horizontalLayout->removeWidget(ui.editTabWidget);
+		//addWidget 内部会 setParent，setParent 会把 widget 置为隐藏；
+		//两个子件都隐藏时 QSplitter 也会连自己一起隐藏，之后 setVisible(true) 不生效。
+		pSplit->addWidget(ui.editTabWidget);
+		pSplit->addWidget(m_mdPreview);
+		pSplit->setStretchFactor(0, 3);
+		pSplit->setStretchFactor(1, 2);
+		pSplit->setChildrenCollapsible(false);
+		pSplit->setSizes(QList<int>() << 900 << 460);
+		ui.horizontalLayout->addWidget(pSplit);
+		ui.editTabWidget->show();
+		pSplit->show();
+	}
+	m_mdPreviewTimer = new QTimer(this);
+	m_mdPreviewTimer->setSingleShot(true);
+	m_mdPreviewTimer->setInterval(200);
+	connect(m_mdPreviewTimer, &QTimer::timeout, this, &CCNotePad::refreshMarkdownPreview);
+	if (qEnvironmentVariableIsSet("NDD_MD_PREVIEW"))
+	{
+		//放到事件循环里再开：此时 initToolBar 已经建好工具栏按钮
+		QTimer::singleShot(0, this, [this]() {
+			slot_markdownPreview();
+			QTimer::singleShot(1500, this, [this]() {
+				QWidget* cur = ui.editTabWidget->currentWidget();
+				qInfo() << "md_check: visible=" << (m_mdPreview && m_mdPreview->isVisible())
+				        << "panel=" << (m_mdPreview ? m_mdPreview->size() : QSize())
+				        << "cur=" << (cur ? cur->metaObject()->className() : "null")
+				        << "textLen=" << (m_mdPreview ? m_mdPreview->documentTextLength() : -1)
+				        << "btnChecked=" << (m_mdPreviewBtn && m_mdPreviewBtn->isChecked());
+			});
+		});
+	}
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  filetypes_ms"; }
 
 	ui.editTabWidget->setTabsClosable(true);
 
@@ -1945,6 +1966,10 @@ void CCNotePad::slot_markdownPreview()
 	}
 	const bool show = !m_mdPreview->isVisible();
 	m_mdPreview->setVisible(show);
+	if (m_mdPreviewBtn != nullptr)
+	{
+		m_mdPreviewBtn->setChecked(show);
+	}
 	if (show)
 	{
 		hookMarkdownLiveUpdate();
@@ -3305,6 +3330,16 @@ void CCNotePad::initToolBar()
 
 	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  toolbar_widgets_ms:" << bt.restart(); }
 	setShoctIcon(ICON_SIZE);
+
+	//工具栏上的 Markdown 预览开关（侧边面板）
+	m_mdPreviewBtn = new QToolButton(ui.mainToolBar);
+	m_mdPreviewBtn->setCheckable(true);
+	m_mdPreviewBtn->setFixedSize(ICON_SIZE, ICON_SIZE);
+	m_mdPreviewBtn->setIconSize(QSize(ICON_SIZE, ICON_SIZE));
+	m_mdPreviewBtn->setIcon(QIcon(":/notepad/showPannel.png"));
+	m_mdPreviewBtn->setToolTip(tr("Markdown Preview"));
+	connect(m_mdPreviewBtn, &QAbstractButton::clicked, this, &CCNotePad::slot_markdownPreview);
+	ui.mainToolBar->addWidget(m_mdPreviewBtn);
 	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  toolbar_icons_ms:" << bt.restart(); }
 
 

@@ -618,8 +618,9 @@ private:
 
 
 	QPointer<QMainWindow> m_batchFindWin;
-	MarkdownView* m_mdPreview;
-	QTimer* m_mdPreviewTimer;
+	MarkdownView* m_mdPreview = nullptr;
+	QToolButton* m_mdPreviewBtn = nullptr;
+	QTimer* m_mdPreviewTimer = nullptr;
 	QMetaObject::Connection m_mdLiveConn;
 
 	int m_curIconSize;

@@ -12,6 +12,9 @@ public:
 
 	//编辑区内容变化时直接刷新（侧边面板模式）
 	void setMarkdown(const QString& markdown);
+
+	//自检用：当前渲染出的纯文本长度
+	int documentTextLength() const;
 	~MarkdownView();
 	void viewMarkdown(QString& text);
 

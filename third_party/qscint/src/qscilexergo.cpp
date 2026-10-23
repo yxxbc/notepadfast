@@ -74,7 +74,7 @@ QFont QsciLexerGO::defaultFont(int style) const
 #if defined(Q_OS_WIN)
 		return QFont("Courier New", QsciLexer::s_defaultFontSize);
 #elif defined(Q_OS_MAC)
-		return QFont("Courier", 12);
+		return QFont("Menlo", 12); // macOS: 等宽字体用系统自带的 Menlo
 #else
 		return QFont("Bitstream Vera Sans Mono", 9);
 #endif

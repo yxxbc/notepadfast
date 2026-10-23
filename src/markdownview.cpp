@@ -65,9 +65,9 @@ static QString buildPreviewCss(const QWidget* w)
 	c << QStringLiteral("h4 { color: %1; font-size: 12pt; font-weight: bold; margin: 10px 0 5px 0; }").arg(headFg);
 	c << QStringLiteral("h5 { color: %1; font-size: 11pt; font-weight: bold; margin: 9px 0 4px 0; }").arg(headFg);
 	c << QStringLiteral("h6 { color: %1; font-size: 11pt; font-weight: bold; margin: 9px 0 4px 0; }").arg(muted);
-	c << QStringLiteral("code { font-family: 'Consolas', monospace; font-size: 10pt;"
+	c << QStringLiteral("code { font-family: 'Menlo', monospace; font-size: 10pt;"
 	                    " background-color: %1; color: %2; }").arg(codeBg, codeFg);
-	c << QStringLiteral("pre { font-family: 'Consolas', monospace; font-size: 10pt;"
+	c << QStringLiteral("pre { font-family: 'Menlo', monospace; font-size: 10pt;"
 	                    " background-color: %1; color: %2;%3 margin: 10px 0; }").arg(codeBg, codeFg, preDeco);
 	c << QStringLiteral("blockquote { color: %1; background-color: %2;%3 margin: 10px 0 10px 12px; }")
 	        .arg(muted, quoteBg, quoteDeco);
@@ -127,6 +127,11 @@ void MarkdownView::setMarkdown(const QString& markdown)
 {
 	const QString html = MdRenderer::renderToHtml(markdown);
 	viewHtml(html);
+}
+
+int MarkdownView::documentTextLength() const
+{
+	return ui.textEdit->document()->characterCount();
 }
 
 void MarkdownView::viewHtml(const QString& html)
