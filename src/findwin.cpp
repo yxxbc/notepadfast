@@ -15,6 +15,7 @@
 #include <BoostRegexSearch.h>
 #include <QClipboard>
 #include <QDebug>
+#include <QElapsedTimer>
 
 enum TAB_TYPES {
 	FIND_TYPE=0,
@@ -1315,9 +1316,8 @@ int FindWin::findAtBack(QStringList& keyword)
 		loadFileProcessWin->show();
 	}
 
-	QString text = pEdit->text();
-
-    QByteArray bytes = text.toUtf8();
+	//只保留 UTF-8 字节这一份，别让 60MB 的 QString 和 30MB 的 QByteArray 同时驻留
+	QByteArray bytes = pEdit->text().toUtf8();
 
 	QByteArray findBytes;
 	int keyLens = 0;
@@ -1390,7 +1390,12 @@ int FindWin::replaceAtBack(QStringList& keyword, QStringList& replace)
 	m_isStatic = true;
 	int times = 0;
 
-	pEdit->execute(SCI_BEGINUNDOACTION);
+	//批量替换期间不记录 undo：否则 Scintilla 会把整篇原文+每次替换状态都留在 undo 记录里，
+	//大文件上直接吃出 GB 级内存。替换完成后再清一次 undo 缓冲。
+	const bool undoWasOn = pEdit->execute(SCI_GETUNDOCOLLECTION) != 0;
+	pEdit->execute(SCI_SETUNDOCOLLECTION, 0);
+	QElapsedTimer batchBench;
+	if (qEnvironmentVariableIsSet("NDD_BENCH_OPEN")) { batchBench.start(); }
 
 	ProgressWin* loadFileProcessWin = nullptr;
 
@@ -1407,7 +1412,8 @@ int FindWin::replaceAtBack(QStringList& keyword, QStringList& replace)
 		loadFileProcessWin->show();
 	}
 
-	QString text = pEdit->text();
+	//在 UTF-8 字节上做替换：比 QString 少一半内存，也避免每次 replace 都重建 QString
+	QByteArray text = pEdit->text().toUtf8();
 
 	for (int i = 0; i < keyword.size(); ++i)
 	{
@@ -1417,11 +1423,21 @@ int FindWin::replaceAtBack(QStringList& keyword, QStringList& replace)
 		}
 		//20230223 不走老的逻辑了，批量替换太慢。直接把文件读取处理，在内存中一次性处理完毕。
 		//但是这样就不知道到底有多少字符串被替换了
-		text.replace(keyword.at(i), replace.at(i));
-
-		if ((loadFileProcessWin != nullptr) && ((i % 10) == 0))
+		const QByteArray k = keyword.at(i).toUtf8();
+		const QByteArray r = replace.at(i).toUtf8();
+		if (!k.isEmpty() && text.contains(k))
 		{
-			loadFileProcessWin->moveStep();
+			times += text.count(k);
+			text.replace(k, r);
+		}
+
+		//每 10 个关键字让出一次事件循环，避免界面无响应
+		if ((i % 10) == 0)
+		{
+			if (loadFileProcessWin != nullptr)
+			{
+				loadFileProcessWin->moveStep();
+			}
 			QCoreApplication::processEvents();
 		}
 	}
@@ -1430,17 +1446,22 @@ int FindWin::replaceAtBack(QStringList& keyword, QStringList& replace)
 	int selectionEnd = pEdit->length();
 
 	pEdit->execute(SCI_SETTARGETRANGE, 0, selectionEnd);
-
-	QByteArray bytes = text.toUtf8();
-
-	pEdit->execute(SCI_REPLACETARGET, bytes.size(), reinterpret_cast<sptr_t>(bytes.data()));
+	pEdit->execute(SCI_REPLACETARGET, text.size(), reinterpret_cast<sptr_t>(text.data()));
 
 	if (loadFileProcessWin != nullptr)
 	{
 		delete loadFileProcessWin;
 	}
 
-	pEdit->execute(SCI_ENDUNDOACTION);
+	//丢弃替换期间产生的 undo 记录，再恢复原有开关
+	pEdit->execute(SCI_EMPTYUNDOBUFFER);
+	pEdit->execute(SCI_SETUNDOCOLLECTION, undoWasOn ? 1 : 0);
+
+	if (qEnvironmentVariableIsSet("NDD_BENCH_OPEN"))
+	{
+		qInfo() << "batch_replace: keywords=" << keyword.size() << " bytes=" << text.size()
+		        << " ms=" << batchBench.elapsed();
+	}
 
 	m_isStatic = false;
 

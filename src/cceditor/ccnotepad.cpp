@@ -15,7 +15,7 @@ static double nddRssMB()
 	}
 	return double(info.resident_size) / 1048576.0;
 }
-#define NDD_RSS(tag) if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "rss_mb:" << tag << nddRssMB(); }
+#define NDD_RSS(tag) if (qEnvironmentVariableIsSet("NDD_BENCH_OPEN") || qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "rss_mb:" << tag << nddRssMB(); }
 #else
 #define NDD_RSS(tag)
 #endif
@@ -1356,6 +1356,33 @@ void CCNotePad::quickshow()
 	m_mdPreviewTimer->setSingleShot(true);
 	m_mdPreviewTimer->setInterval(200);
 	connect(m_mdPreviewTimer, &QTimer::timeout, this, &CCNotePad::refreshMarkdownPreview);
+	if (qEnvironmentVariableIsSet("NDD_BATCH_TEST"))
+	{
+		//压测批量替换：NDD_BATCH_TEST=<关键字个数>
+		const int n = qEnvironmentVariableIntValue("NDD_BATCH_TEST");
+		QTimer::singleShot(1200, this, [this, n]() {
+			QStringList findList;
+			QStringList replList;
+			for (int i = 0; i < n; ++i)
+			{
+				findList << QString("keyword%1").arg(i);      //多数字符串在文档里不存在，只测开销
+				replList << QString("KW%1").arg(i);
+			}
+			findList << "alpha" << "beta";                    //这两个是真实存在的
+			replList << "ALPHA" << "BETA";
+
+			NDD_RSS("before_batch");
+			initFindWindow();
+			FindWin* pFind = dynamic_cast<FindWin*>(m_pFindWin.data());
+			if (pFind != nullptr)
+			{
+				pFind->replaceAtBack(findList, replList);
+			}
+			NDD_RSS("after_batch");
+			QTimer::singleShot(300, qApp, &QCoreApplication::quit);
+		});
+	}
+
 	if (qEnvironmentVariableIsSet("NDD_SMOKE_SLOT"))
 	{
 		//冒烟测试：在没有打开任何文档的情况下，按名字逐一触发 0 参数的 slot，
@@ -1407,6 +1434,13 @@ void CCNotePad::quickshow()
 	{
 		QTimer::singleShot(600, this, [this]() {
 			qInfo() << "highlight_check: tabs=" << ui.editTabWidget->count();
+			for (int i = 0; i < ui.editTabWidget->count(); ++i)
+			{
+				QWidget* w = ui.editTabWidget->widget(i);
+				qInfo() << "  tab" << i << "path=" << getFilePathProperty(w)
+				        << "newIndex=" << getFileNewIndexProperty(w)
+				        << "type=" << getDocTypeProperty(w);
+			}
 			slot_wordHighlight();
 			qInfo() << "highlight_check: survived";
 			QTimer::singleShot(200, qApp, &QCoreApplication::quit);
@@ -3964,6 +3998,7 @@ void CCNotePad::reloadEditFile(ScintillaEditView* pEdit, bool isTailfOn, qint64 
 	else
 	{
 		errCode = FileManager::getInstance().loadFileDataInText(pEdit, filePath, code, lineEnd, nullptr, false, this);
+	NDD_RSS("after_load_data");
 	}
 
 	enableEditTextChangeSign(pEdit);
@@ -4892,6 +4927,8 @@ const quint64 MAX_TRY_OPEN_FILE_SIZE = 1024 * 1024 * 1024;
 //打开普通文本文件。
 bool CCNotePad::openTextFile(QString filePath, bool isCheckHex, CODE_ID code)
 {
+	static int s_openCount = 0;
+	if (qEnvironmentVariableIsSet("NDD_BENCH_OPEN")) { qInfo() << "openTextFile#" << ++s_openCount << filePath; }
 	getRegularFilePath(filePath);
 
 	//先检测交换文件是否存在，如果存在，说明上次崩溃了，提示用户恢复
@@ -5030,6 +5067,7 @@ bool CCNotePad::openTextFile(QString filePath, bool isCheckHex, CODE_ID code)
 	//下面函数太长，进行一个重构到setNormalTextEditInitPro，后面其他地方也需要使用
 	setNormalTextEditInitPro(pEdit, filePath, code, lineEnd, isReadOnly,false);
 
+	NDD_RSS("end_of_open_textfile");
 	return true;
 }
 
@@ -5620,6 +5658,7 @@ bool CCNotePad::tryRestoreFile(QString filePath)
 }
 bool CCNotePad::openFile(QString filePath, int lineNum)
 {
+	if (qEnvironmentVariableIsSet("NDD_BENCH_OPEN")) { qInfo() << "openFile:" << filePath << "lineNum=" << lineNum; }
 	s_padTimes++;
 	//如果是相对路径
 	getRegularFilePath(filePath);

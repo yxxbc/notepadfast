@@ -12,6 +12,21 @@
 #include <QFileInfo>
 #include <QElapsedTimer>
 
+
+#ifdef Q_OS_MAC
+#include <mach/mach.h>
+static double fmRssMB()
+{
+	mach_task_basic_info info;
+	mach_msg_type_number_t size = MACH_TASK_BASIC_INFO_COUNT;
+	if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO, (task_info_t)&info, &size) != KERN_SUCCESS) return -1;
+	return double(info.resident_size) / 1048576.0;
+}
+#define FM_RSS(tag) if (qEnvironmentVariableIsSet("NDD_BENCH_OPEN")) { qInfo() << "  rss:" << tag << fmRssMB(); }
+#else
+#define FM_RSS(tag)
+#endif
+
 LangType detectLanguage(QString& headContent, QString& filepath);
 
 FileManager::FileManager():m_lastErrorCode(NONE_ERROR)
@@ -588,7 +603,18 @@ int FileManager::loadFileDataInText(ScintillaEditView* editView, QString filePat
 				}
 			}
 
+			FM_RSS("before_settext");
+			//加载期间关掉 undo：否则 Scintilla 会把整篇文本+样式记进 undo 记录，内存直接翻倍
+			const bool undoWasOn = editView->SendScintilla(SCI_GETUNDOCOLLECTION) != 0;
+			editView->SendScintilla(SCI_SETUNDOCOLLECTION, 0);
 			editView->SendScintilla(SCI_SETTEXT, rawBytes.constData() + bomLen);
+			editView->SendScintilla(SCI_EMPTYUNDOBUFFER);
+			editView->SendScintilla(SCI_SETUNDOCOLLECTION, undoWasOn ? 1 : 0);
+			FM_RSS("after_settext");
+
+			rawBytes.clear();
+			rawBytes.squeeze();
+			FM_RSS("after_free_bytes");
 			file.close();
 			return 0;
 		}
