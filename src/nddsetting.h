@@ -23,6 +23,7 @@ static QString FINDWINSIZE = "findwinsize";//保存查找框的大小。150%放�
 static QString SHOWWEBADDR = "showweb";//高亮web地址，双击网页打开
 static QString FIND_RESULT_FONT_SIZE = "frfs";//查找结果的默认字体大小，默认为14
 static QString LAST_ACTION_TAB_INDEX = "lati";//上次关闭时，当前激活的tab标签页序号
+static QString APP_FONT = "appfont";//界面字体，空则用系统默认
 
 static QString RECENT_OPEN_FILE = "recentopenfile";
 static QString LAST_OPEN_DIR = "lastdir";

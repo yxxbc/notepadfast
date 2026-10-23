@@ -286,7 +286,8 @@ int main(int argc, char *argv[])
 	QApplication::setFont(font);
 #endif
 #ifdef Q_OS_MAC
-	//这里的字体大小，务必要和查找结果框的高度匹配，否则会结构字体拥挤
+	//界面字体：设置里保存过就用保存的，否则用系统等宽 Menlo。
+	//字体大小务必要和查找结果框的高度匹配，否则结构会拥挤。
 	QFont font("Menlo", 11);
 	// qDebug() << "font name mac";
 	QApplication::setFont(font);
@@ -550,6 +551,22 @@ drop_old:
 	NddSetting::init();
 
 	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "bench_setting_ms:" << s_startupTimer.elapsed(); }
+
+#ifdef Q_OS_MAC
+	//界面字体：设置里存过就套用（必须在 NddSetting::init() 之后，否则 settings 还没建）
+	{
+		const QString savedFont = NddSetting::getKeyValueFromSets(APP_FONT);
+		if (!savedFont.isEmpty())
+		{
+			QFont f = QApplication::font();
+			if (f.fromString(savedFont))
+			{
+				QApplication::setFont(f);
+			}
+		}
+		if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "app_font:" << QApplication::font().toString(); }
+	}
+#endif
 	int id = NddSetting::getKeyValueFromNumSets(SKIN_KEY);
 	StyleSet::setSkin(id);
 	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "bench_style_ms:" << s_startupTimer.elapsed(); }

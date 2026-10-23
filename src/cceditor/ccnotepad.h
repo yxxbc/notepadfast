@@ -98,6 +98,8 @@ public:
 	//Markdown 侧边预览开关（VSCode 式分栏，不再是弹窗）
 	void slot_markdownPreview();
 	void hookMarkdownLiveUpdate();
+	//界面字体设置（mac 默认 Menlo，可通过菜单改，重启后保留）
+	void slot_selectAppFont();
 	void refreshMarkdownPreview();
 	CCNotePad(bool isMainWindows = true, QWidget *parent = Q_NULLPTR);
 	~CCNotePad();

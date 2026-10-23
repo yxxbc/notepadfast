@@ -3,6 +3,7 @@
 #include <QElapsedTimer>
 #include <QMetaMethod>
 #include <QFileInfo>
+#include <QFontDialog>
 #include <QSplitter>
 #include <QToolButton>
 #include "filemanager.h"
@@ -1362,7 +1363,8 @@ void CCNotePad::quickshow()
 				if (lower.contains("quit") || lower.contains("close") || lower.contains("save")
 				    || lower.contains("open") || lower.contains("dialog") || lower.contains("print")
 				    || lower.contains("exit") || lower.contains("rename") || lower.contains("convert")
-				    || lower.contains("plugin") || lower.contains("newfile") || lower.contains("hex"))
+				    || lower.contains("plugin") || lower.contains("newfile") || lower.contains("hex")
+				    || lower.contains("font"))
 				{
 					continue;
 				}
@@ -2048,6 +2050,22 @@ void CCNotePad::loadPluginProcs(QString strLibDir, QMenu* pMenu)
 	}
 }
 #endif
+
+//界面字体：改完立即生效并写入 nddsets（下次启动 main.cpp 会读）
+void CCNotePad::slot_selectAppFont()
+{
+	bool ok = false;
+	const QFont cur = QApplication::font();
+	const QFont picked = QFontDialog::getFont(&ok, cur, this, tr("App Font"));
+	if (!ok)
+	{
+		return;
+	}
+
+	QApplication::setFont(picked);
+	NddSetting::updataKeyValueFromSets(QStringLiteral("appfont"), picked.toString());
+	ui.statusBar->showMessage(tr("UI font changed: %1 (also applies after restart)").arg(picked.family()), 5000);
+}
 
 // Markdown 预览：VSCode 式右侧分栏面板，随当前文档实时刷新。
 //
@@ -3452,6 +3470,12 @@ void CCNotePad::initToolBar()
 	ui.mainToolBar->addWidget(m_rename);
 
 	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  toolbar_widgets_ms:" << bt.restart(); }
+	//界面字体（Settings 菜单）
+	{
+		QAction* pFontAct = ui.menuSet->addAction(tr("App Font ..."), this, &CCNotePad::slot_selectAppFont);
+		pFontAct->setStatusTip(tr("Change the application UI font"));
+	}
+
 	setShoctIcon(ICON_SIZE);
 
 	//工具栏上的 Markdown 预览开关（侧边面板）
@@ -9156,7 +9180,11 @@ int CCNotePad::restoreLastFiles()
 				restoreCleanNewFile(path);
 				break;
 			case 2:
-				restoreCleanExistFile(path);
+				//上次打开的文件可能已经删了/移动了，直接跳过，别留一个空窗口
+				if (QFile::exists(path))
+				{
+					restoreCleanExistFile(path);
+				}
 				break;
 			case 3:
 			{
@@ -9203,7 +9231,14 @@ int CCNotePad::restoreLastFiles()
 	int curIndexWhenQuit = NddSetting::getKeyValueFromNumSets(LAST_ACTION_TAB_INDEX);
 	ui.editTabWidget->setCurrentIndex(curIndexWhenQuit);
 
-	return fileList.size();
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP"))
+	{
+		qInfo() << "restore_files: keys=" << fileList.size() << " tabs=" << ui.editTabWidget->count();
+	}
+
+	//关键：返回的是"真正恢复出来的标签页数"，而不是记录条数。
+	//否则文件被删/记录失效时 main() 认为恢复成功，不会补建新文件 → 启动后一张空白文档都没有。
+	return ui.editTabWidget->count();
 }
 
 
