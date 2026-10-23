@@ -1,5 +1,6 @@
 ﻿#include <memory>
 #include "ccnotepad.h"
+#include <QElapsedTimer>
 #include "filemanager.h"
 #include "Encode.h"
 #include "findwin.h"
@@ -1143,12 +1144,15 @@ CCNotePad::CCNotePad(bool isMainWindows, QWidget *parent)
 	//启用拖动
 	setAcceptDrops(true);
 
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  pre_init_ms"; }
 	initFileTypeLangMap();
 	initLexerNameToIndex();
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  lexer_map_ms"; }
 
 	//这里在主线程里面调用一下，避免后续因为没有创建，而可能在子线程中初始化里面的值，而且多个子线程引发重入竞争问题
 	//20220402在1.11中发现这个问题。所以加上这里的手动调用
 	DocTypeListView::initSupportFileTypes();
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  filetypes_ms"; }
 
 	ui.editTabWidget->setTabsClosable(true);
 
@@ -1180,6 +1184,7 @@ CCNotePad::CCNotePad(bool isMainWindows, QWidget *parent)
 	ui.statusBar->insertPermanentWidget(3, m_codeStatusLabel);
 
 	initToolBar();
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  toolbar_ms"; }
 
 	m_saveFile->setEnabled(false);
 	m_saveAllFile->setEnabled(false);
@@ -1231,6 +1236,9 @@ CCNotePad::~CCNotePad()
 //先快速让窗口展示处理，后续再去做复杂的初始化
 void CCNotePad::quickshow()
 {
+	QElapsedTimer bench;
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) bench.start();
+
 	QByteArray lastGeo = NddSetting::getKeyByteArrayValue(WIN_POS);
 
 	if (!lastGeo.isEmpty())
@@ -1240,7 +1248,9 @@ void CCNotePad::quickshow()
 
 	show();
 
-	QCoreApplication::processEvents();
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  show_ms:" << bench.restart(); }
+
+	//QCoreApplication::processEvents();
 
 	if (s_padInstances == nullptr)
 	{
@@ -1251,12 +1261,15 @@ void CCNotePad::quickshow()
 	setAcceptDrops(true);
 
 
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  pre_init_ms:" << bench.restart(); }
 	initFileTypeLangMap();
 	initLexerNameToIndex();
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  lexer_map_ms:" << bench.restart(); }
 
 	//这里在主线程里面调用一下，避免后续因为没有创建，而可能在子线程中初始化里面的值，而且多个子线程引发重入竞争问题
 	//20220402在1.11中发现这个问题。所以加上这里的手动调用
 	DocTypeListView::initSupportFileTypes();
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  filetypes_ms:" << bench.restart(); }
 
 	ui.editTabWidget->setTabsClosable(true);
 
@@ -1297,6 +1310,7 @@ void CCNotePad::quickshow()
 
 
 	initToolBar();
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  toolbar_ms:" << bench.restart(); }
 
 	m_saveFile->setEnabled(false);
 	m_saveAllFile->setEnabled(false);

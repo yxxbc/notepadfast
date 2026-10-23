@@ -28,6 +28,13 @@ INCLUDEPATH += $$PWD/../third_party/qscint/src/Qsci
 INCLUDEPATH += $$PWD/../third_party/qscint/scintilla/include
 INCLUDEPATH += cceditor
 
+# 生成物统一扔进 build/，否则 moc_*.cpp / ui_*.h 会落在 src/，
+# 再被上面 SOURCES += *.cpp 的 wildcard 收进来 → duplicate symbol
+MOC_DIR     = $$PWD/../build/moc
+OBJECTS_DIR = $$PWD/../build/obj
+UI_DIR      = $$PWD/../build/ui
+RCC_DIR     = $$PWD/../build/rcc
+
 DEFINES += QSCINTILLA_DLL
 
 TRANSLATIONS += realcompare_zh.ts

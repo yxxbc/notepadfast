@@ -477,8 +477,10 @@ drop_old:
 
 	NddSetting::init();
 
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "bench_setting_ms:" << s_startupTimer.elapsed(); }
 	int id = NddSetting::getKeyValueFromNumSets(SKIN_KEY);
 	StyleSet::setSkin(id);
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "bench_style_ms:" << s_startupTimer.elapsed(); }
 
 	CCNotePad *pMainNotepad = new CCNotePad(true);
 	pMainNotepad->setAttribute(Qt::WA_DeleteOnClose);

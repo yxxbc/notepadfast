@@ -22,7 +22,7 @@ make -j"$JOBS"
 # 2) 主程序 → build/bin/NotepadFast.app
 echo ">> [2/3] NotepadFast"
 cd "$ROOT/src"
-[ -f Makefile ] || qmake RealCompare.pro
+qmake RealCompare.pro
 make -j"$JOBS"
 
 # 3) 资源：代码按 applicationDirPath()/themes 读主题 ini，拷进 bundle
