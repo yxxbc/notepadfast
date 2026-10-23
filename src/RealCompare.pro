@@ -45,6 +45,13 @@ DESTDIR = $$PWD/../build/bin
 LIBS += -L$$PWD/../build/lib -lqmyedit_qt5
 PRE_TARGETDEPS += $$PWD/../build/lib/libqmyedit_qt5.a
 
+# Markdown 渲染：github/cmark-gfm（brew install cmark-gfm）
+macx {
+    CMARK_PREFIX = /opt/homebrew
+    INCLUDEPATH += $$CMARK_PREFIX/include
+    LIBS += $$CMARK_PREFIX/lib/libcmark-gfm-extensions.a $$CMARK_PREFIX/lib/libcmark-gfm.a
+}
+
 ICON = mac.icns
 
 macx {

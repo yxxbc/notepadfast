@@ -35,6 +35,8 @@ cd src && qmake RealCompare.pro && make -j8                     # 主程序 → 
 
 ## 说明
 
+- Markdown 预览用 [cmark-gfm](https://github.com/github/cmark-gfm) 渲染（`brew install cmark-gfm`，静态库直接链进 .app）。
+- 设置页快捷键：⌘,（`QKeySequence::Preferences`）。
 - 翻译：`src/realcompare_zh.ts` → `lrelease` 生成 `realcompare_zh.qm`（qrc 引用，改了文案需重新生成）。
 - 插件：主程序从自身目录下的 `plugin/` 加载动态库；插件侧头文件用 `src/include/pluginGl.h`，主程序用 `src/pluginGl.h`（两者不同，别合并）。
 - 第三方依赖见 [THIRDPARTY.md](THIRDPARTY.md)。

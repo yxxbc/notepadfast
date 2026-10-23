@@ -12,7 +12,7 @@
   </property>
   <property name="font">
    <font>
-    <family>Microsoft YaHei</family>
+    <family>PingFang SC</family>
     <pointsize>12</pointsize>
    </font>
   </property>
@@ -44,7 +44,7 @@
      <widget class="QTabWidget" name="editTabWidget">
       <property name="font">
        <font>
-        <family>Microsoft YaHei</family>
+        <family>PingFang SC</family>
         <pointsize>10</pointsize>
        </font>
       </property>

@@ -2,6 +2,8 @@
 
 ## 源码依赖
 
+- [[BSD-2-Clause](https://github.com/github/cmark-gfm/blob/master/COPYING)] [cmark-gfm](https://github.com/github/cmark-gfm) — Markdown → HTML（Markdown 预览）
+
 - [[GPL v3](src/qscint/LICENSE)] [QScintilla](https://riverbankcomputing.com/software/qscintilla/intro) 
 - [GPL v3] 
     - [boostregex](src/qscint/scintilla/boostregex)

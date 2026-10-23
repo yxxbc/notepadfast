@@ -3058,6 +3058,8 @@ void CCNotePad::setShoctIcon(int iconSize)
 
 void CCNotePad::initToolBar()
 {
+	QElapsedTimer bt;
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { bt.start(); }
 	int iconIndex = NddSetting::getKeyValueFromNumSets(ICON_SIZE);
 
 	int ICON_SIZE = 24;
@@ -3078,6 +3080,9 @@ void CCNotePad::initToolBar()
 	}
 
 	m_curIconSize = ICON_SIZE;
+
+	//mac 习惯：⌘, 打开设置
+	ui.actionOptions->setShortcut(QKeySequence::Preferences);
 
 	s_autoWarp = NddSetting::getKeyValueFromNumSets(AUTOWARP_KEY);
 	s_zoomValue = NddSetting::getKeyValueFromNumSets(ZOOMVALUE);
@@ -3298,7 +3303,9 @@ void CCNotePad::initToolBar()
 	m_rename->setToolTip(tr("batch rename file"));
 	ui.mainToolBar->addWidget(m_rename);
 
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  toolbar_widgets_ms:" << bt.restart(); }
 	setShoctIcon(ICON_SIZE);
+	if (qEnvironmentVariableIsSet("NDD_BENCH_STARTUP")) { qInfo() << "  toolbar_icons_ms:" << bt.restart(); }
 
 
 	//编码里面只能有一个当前被选中
