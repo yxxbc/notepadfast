@@ -34,6 +34,15 @@ cd third_party/qscint/src && qmake qscintilla.pro && make -j8   # 静态库 → 
 cd src && qmake RealCompare.pro && make -j8                     # 主程序 → build/bin
 ```
 
+## 自检 / 调试钩子
+
+```sh
+NDD_MD_PREVIEW=1 ./build/bin/NotepadFast.app/Contents/MacOS/NotepadFast file.md   # 打开预览面板并打印自检
+NDD_BENCH_STARTUP=1  ...                                                          # 启动分段耗时
+NDD_BENCH_OPEN=1     ...                                                          # 打开文件/预览渲染耗时
+NDD_SMOKE_SLOT=<n>   ...                                                          # 无文档时逐个触发第 n 个 slot（88 个），查崩溃入口
+```
+
 ## 说明
 
 - Markdown 预览用 [cmark-gfm](https://github.com/github/cmark-gfm) 渲染（`brew install cmark-gfm`，静态库直接链进 .app）。

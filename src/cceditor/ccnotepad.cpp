@@ -1,6 +1,7 @@
 ﻿#include <memory>
 #include "ccnotepad.h"
 #include <QElapsedTimer>
+#include <QMetaMethod>
 #include <QFileInfo>
 #include <QSplitter>
 #include <QToolButton>
@@ -171,6 +172,10 @@ const QString OpenAttrToString(OpenAttr openType)
 
 QString getFileOpenAttrProperty(QWidget* pwidget)
 {
+	if (pwidget == nullptr)
+	{
+		return QString();
+	}
 	OpenAttr openType = (OpenAttr)pwidget->property(Open_Attr).toInt();
 	return OpenAttrToString(openType);
 }
@@ -183,6 +188,10 @@ void setFilePathProperty(QWidget* pwidget, QString filePath)
 
 QString getFilePathProperty(QWidget* pwidget)
 {
+	if (pwidget == nullptr)
+	{
+		return QString();
+	}
 	return pwidget->property(Edit_View_FilePath).toString();
 }
 
@@ -195,6 +204,11 @@ void setFileNewIndexProperty(QWidget* pwidget, int index)
 //新文件的id，非新文件为-1
 int getFileNewIndexProperty(QWidget* pwidget)
 {
+	//没有打开文档时调用方会传 nullptr，这里统一兜住，避免 QObject::property 空指针崩溃
+	if (pwidget == nullptr)
+	{
+		return -1;
+	}
 	return pwidget->property(Edit_File_New).toInt();
 }
 
@@ -206,6 +220,11 @@ inline void setTextChangeProperty(QWidget* pwidget, bool status)
 
 bool getTextChangeProperty(QWidget* pwidget)
 {
+	//没有打开文档时调用方会传 nullptr，这里统一兜住，避免 QObject::property 空指针崩溃
+	if (pwidget == nullptr)
+	{
+		return false;
+	}
 	return pwidget->property(Edit_Text_Change).toBool();
 }
 
@@ -217,6 +236,11 @@ void setCodeTypeProperty(QWidget* pwidget, int type)
 
 int getCodeTypeProperty(QWidget* pwidget)
 {
+	//没有打开文档时调用方会传 nullptr，这里统一兜住，避免 QObject::property 空指针崩溃
+	if (pwidget == nullptr)
+	{
+		return 0;
+	}
 	return pwidget->property(Edit_Text_Code).toInt();
 }
 
@@ -228,6 +252,11 @@ void setEndTypeProperty(QWidget* pwidget, int type)
 
 int getEndTypeProperty(QWidget* pwidget)
 {
+	//没有打开文档时调用方会传 nullptr，这里统一兜住，避免 QObject::property 空指针崩溃
+	if (pwidget == nullptr)
+	{
+		return 0;
+	}
 	return pwidget->property(Edit_Text_End).toInt();
 }
 
@@ -239,6 +268,11 @@ void setFileTailProperty(QWidget* pwidget, int type)
 
 int getFileTailProperty(QWidget* pwidget)
 {
+	//没有打开文档时调用方会传 nullptr，这里统一兜住，避免 QObject::property 空指针崩溃
+	if (pwidget == nullptr)
+	{
+		return 0;
+	}
 	return pwidget->property(Tail_Status).toInt();
 }
 
@@ -264,6 +298,12 @@ void setDocTypeProperty(QWidget* pwidget, NddDocType type)
 
 int getDocTypeProperty(QWidget* pwidget)
 {
+	//没有打开的标签页时这里会拿到 nullptr，之前直接解引用 → SIGSEGV。
+	//返回 0 表示"没有文档"，任何 TXT/HEX 判断都不会命中。
+	if (pwidget == nullptr)
+	{
+		return 0;
+	}
 	return pwidget->property(Doc_Type).toInt();
 }
 
@@ -1298,6 +1338,62 @@ void CCNotePad::quickshow()
 	m_mdPreviewTimer->setSingleShot(true);
 	m_mdPreviewTimer->setInterval(200);
 	connect(m_mdPreviewTimer, &QTimer::timeout, this, &CCNotePad::refreshMarkdownPreview);
+	if (qEnvironmentVariableIsSet("NDD_SMOKE_SLOT"))
+	{
+		//冒烟测试：在没有打开任何文档的情况下，按名字逐一触发 0 参数的 slot，
+		//用来看哪些入口会崩溃/卡死（NDD_SMOKE_SLOT=<序号>）。
+		QTimer::singleShot(400, this, [this]() {
+			QStringList names;
+			const QMetaObject* mo = metaObject();
+			for (int i = 0; i < mo->methodCount(); ++i)
+			{
+				const QMetaMethod m = mo->method(i);
+				if (m.methodType() != QMetaMethod::Slot || m.parameterCount() != 0)
+				{
+					continue;
+				}
+				const QString n = QString::fromLatin1(m.name());
+				if (!n.startsWith("slot_"))
+				{
+					continue;
+				}
+				//这些会弹模态框/写文件/退出，冒烟测试跳过
+				const QString lower = n.toLower();
+				if (lower.contains("quit") || lower.contains("close") || lower.contains("save")
+				    || lower.contains("open") || lower.contains("dialog") || lower.contains("print")
+				    || lower.contains("exit") || lower.contains("rename") || lower.contains("convert")
+				    || lower.contains("plugin") || lower.contains("newfile") || lower.contains("hex"))
+				{
+					continue;
+				}
+				names << n;
+			}
+			names.sort();
+			const int idx = qEnvironmentVariableIntValue("NDD_SMOKE_SLOT") - 1;
+			qInfo() << "smoke:total=" << names.size();
+			if (idx < 0 || idx >= names.size())
+			{
+				qInfo() << "smoke:done";
+				QTimer::singleShot(0, qApp, &QCoreApplication::quit);
+				return;
+			}
+			qInfo() << "smoke:invoke =" << names.at(idx);
+			const bool ok = QMetaObject::invokeMethod(this, names.at(idx).toLatin1().constData(), Qt::DirectConnection);
+			qInfo() << "smoke:survived ok=" << ok;
+			QTimer::singleShot(150, qApp, &QCoreApplication::quit);
+		});
+	}
+
+	if (qEnvironmentVariableIsSet("NDD_CLICK_HIGHLIGHT"))
+	{
+		QTimer::singleShot(600, this, [this]() {
+			qInfo() << "highlight_check: tabs=" << ui.editTabWidget->count();
+			slot_wordHighlight();
+			qInfo() << "highlight_check: survived";
+			QTimer::singleShot(200, qApp, &QCoreApplication::quit);
+		});
+	}
+
 	if (qEnvironmentVariableIsSet("NDD_MD_PREVIEW"))
 	{
 		//放到事件循环里再开：此时 initToolBar 已经建好工具栏按钮
@@ -4464,6 +4560,10 @@ QString CCNotePad::getShortName(const QString& name)
 bool CCNotePad::reloadTextFileWithCode(CODE_ID code)
 {
 	QWidget* pw = ui.editTabWidget->currentWidget();
+	if (pw == nullptr)
+	{
+		return false;
+	}
 	//16进制的处理逻辑
 
 	int docType = getDocTypeProperty(pw);
@@ -5817,6 +5917,10 @@ void CCNotePad::saveTabEdit(int tabIndex)
 	}
 
 	ScintillaEditView* pEdit = dynamic_cast<ScintillaEditView*>(pw);
+	if (pEdit == nullptr)
+	{
+		return;
+	}
 
 	//保存成功后，开启修改监控
 		//如果是未设置脏状态，则设置脏为true
@@ -7359,7 +7463,7 @@ void CCNotePad::slot_clearWordHighlight()
 	QWidget* pw = ui.editTabWidget->currentWidget();
 	int docType = getDocTypeProperty(pw);
 	QString signWord;
-	ScintillaEditView* pEdit;
+	ScintillaEditView* pEdit = nullptr;   //必须是 nullptr：没有匹配到文档时下面要用
 	int srcPostion = -1;
 
 	if ((TXT_TYPE == docType) || (BIG_TEXT_RO_TYPE == docType) || (SUPER_BIG_TEXT_RO_TYPE == docType))
@@ -7371,6 +7475,11 @@ void CCNotePad::slot_clearWordHighlight()
 		}
 	}
 	else if (HEX_TYPE == docType)
+	{
+		return;
+	}
+
+	if (pEdit == nullptr)
 	{
 		return;
 	}
@@ -7393,7 +7502,7 @@ void CCNotePad::slot_wordHighlight()
 	QWidget* pw = ui.editTabWidget->currentWidget();
 	int docType = getDocTypeProperty(pw);
 	QString signWord;
-	ScintillaEditView* pEdit;
+	ScintillaEditView* pEdit = nullptr;   //必须是 nullptr：没有匹配到文档时下面要用
 	int srcPostion = -1;
 
 	if ((TXT_TYPE == docType) || (BIG_TEXT_RO_TYPE == docType) || (SUPER_BIG_TEXT_RO_TYPE == docType))
@@ -7405,6 +7514,11 @@ void CCNotePad::slot_wordHighlight()
 		}
 	}
 	else if (HEX_TYPE == docType)
+	{
+		return;
+	}
+
+	if (pEdit == nullptr)
 	{
 		return;
 	}
