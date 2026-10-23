@@ -16,18 +16,22 @@ third_party/qscint/ 内置 QScintilla 静态库（第三方，勿改）
 build/              构建输出（bin/ 可执行文件、lib/ 静态库），已 gitignore
 ```
 
-## 构建（arm64）
+## 构建 / 安装
 
 ```sh
-# 1. QScintilla 静态库
-cd third_party/qscint/src && qmake qscintilla.pro && make -j8
-
-# 2. 主程序
-cd src && qmake RealCompare.pro && make -j8
-# 产物：build/bin/NotepadFast.app
+./build.sh          # 用最新源码编译并直接打开 app（首次会自动 brew install qt@5）
+./buildinstall.sh   # 编译并装到 ~/Applications，然后打开
 ```
 
-运行前把 `src/themes/` 放到 app 同级目录（代码按 `applicationDirPath()/themes/` 读取主题）。
+产物：`build/bin/NotepadFast.app`（脚本会自动把 `src/themes/` 拷进 bundle，代码按
+`applicationDirPath()/themes/` 读主题）。
+
+手动编译等价于：
+
+```sh
+cd third_party/qscint/src && qmake qscintilla.pro && make -j8   # 静态库 → build/lib
+cd src && qmake RealCompare.pro && make -j8                     # 主程序 → build/bin
+```
 
 ## 说明
 
