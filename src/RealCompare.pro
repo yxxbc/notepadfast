@@ -7,6 +7,9 @@ CONFIG += qt warn_on release
 
 QT += core gui widgets concurrent network
 
+# QScintilla 的 MacPasteboardMime 依赖 QtMacExtras（仅 Qt5）
+macx: QT += macextras
+
 HEADERS += *.h \
            cceditor/ccnotepad.h \
            cceditor/filemanager.h
